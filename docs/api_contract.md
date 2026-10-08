@@ -203,6 +203,12 @@ Transfers ownership to the recycler and updates requirement fulfillment.
 
 ### `GET /api/households/{householdId}/metrics`
 ### `GET /api/kabadiwalas/{kabadiwalaId}/metrics`
+
+### `GET /api/kabadiwalas/{kabadiwalaId}/profile`
+
+Returns the collector's seeded demo profile indicators, service radius, and
+supported materials. `demoRating` and `payoutIndex` are demonstration values,
+not user-generated reputation scores.
 ### `GET /api/recyclers/{recyclerId}/metrics`
 
 Metrics are derived only from stored records. No unsupported carbon or

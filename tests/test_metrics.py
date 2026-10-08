@@ -29,6 +29,14 @@ class MetricsTests(unittest.TestCase):
         self.assertEqual(metrics["collectionsCompleted"], 1)
         self.assertEqual(metrics["estimatedRevenueInr"], 50)
 
+    def test_kabadiwala_profile_indicators_are_explicitly_demo_values(self):
+        profile = self.service.profiles["kab"]
+        profile.demo_rating = 4.8
+        profile.payout_index = 1.08
+        summary = self.service.profile_summary("kab")
+        self.assertEqual(summary["demoRating"], 4.8)
+        self.assertEqual(summary["payoutIndex"], 1.08)
+
     def test_recycler_metrics_track_requirements_and_bookings(self):
         requirement = self.service.create_requirement("rec", "pet", 5)
         metrics = self.service.recycler_metrics("rec")

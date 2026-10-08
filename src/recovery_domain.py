@@ -63,6 +63,8 @@ class Profile:
     longitude: float
     service_radius_km: float = 0.0
     supported_materials: set[str] = field(default_factory=set)
+    demo_rating: float = 0.0
+    payout_index: float = 1.0
 
 
 @dataclass
@@ -330,7 +332,7 @@ class RecoveryService:
         }
 
     def kabadiwala_metrics(self, kabadiwala_id: str) -> dict:
-        self._require_role(kabadiwala_id, Role.KABADIWALA)
+        profile = self._require_role(kabadiwala_id, Role.KABADIWALA)
         records = [m for m in self.materials.values() if m.current_holder_id == kabadiwala_id and m.status in {"collected", "reserved"}]
         by_type = _sum_by_type(records)
         requests = [r for r in self.requests.values() if r.assigned_kabadiwala_id == kabadiwala_id]
@@ -340,7 +342,18 @@ class RecoveryService:
             "totalCollectedKg": round(sum(m.quantity_kg for m in records), 3),
             "estimatedRevenueInr": round(sum(m.estimated_value for m in records)),
             "byMaterialType": by_type,
+            "demoRating": profile.demo_rating,
+            "payoutIndex": profile.payout_index,
         }
+
+    def profile_summary(self, profile_id: str) -> dict:
+        profile = self.profiles.get(profile_id)
+        if not profile:
+            raise ValueError("profile not found")
+        summary = {"id": profile.id, "role": profile.role.value, "name": profile.name}
+        if profile.role == Role.KABADIWALA:
+            summary.update({"demoRating": profile.demo_rating, "payoutIndex": profile.payout_index, "serviceRadiusKm": profile.service_radius_km, "supportedMaterials": sorted(profile.supported_materials)})
+        return summary
 
     def recycler_metrics(self, recycler_id: str) -> dict:
         self._require_role(recycler_id, Role.RECYCLER)

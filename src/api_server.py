@@ -24,7 +24,7 @@ def build_state(with_demo_requests: bool = False) -> tuple[RecoveryService, Area
     service.add_profile(Profile("household_2", Role.HOUSEHOLD, "Household B", 28.6450, 77.2165))
     service.add_profile(Profile("household_3", Role.HOUSEHOLD, "Household C", 28.5677, 77.2433))
     service.add_profile(Profile("household_4", Role.HOUSEHOLD, "Household D", 28.5921, 77.0460))
-    service.add_profile(Profile("kabadiwala_1", Role.KABADIWALA, "Ramesh Recovery", 28.6800, 77.1500, 1, {"pet", "cardboard", "paper", "aluminium", "glass", "wood"}))
+    service.add_profile(Profile("kabadiwala_1", Role.KABADIWALA, "Ramesh Recovery", 28.6800, 77.1500, 1, {"pet", "cardboard", "paper", "aluminium", "glass", "wood"}, 4.8, 1.08))
     service.add_profile(Profile("recycler_1", Role.RECYCLER, "GreenCycle Delhi", 28.6500, 77.2000))
     first = service.add_material("household_1", "pet", 4)
     service.add_material("household_1", "cardboard", 2)
@@ -96,6 +96,8 @@ class DemoHandler(SimpleHTTPRequestHandler):
                 return self._send_json(service.household_metrics("household_1"))
             if path == "/api/kabadiwalas/kabadiwala_1/metrics":
                 return self._send_json(service.kabadiwala_metrics("kabadiwala_1"))
+            if path == "/api/kabadiwalas/kabadiwala_1/profile":
+                return self._send_json(service.profile_summary("kabadiwala_1"))
             if path == "/api/recyclers/recycler_1/metrics":
                 return self._send_json(service.recycler_metrics("recycler_1"))
             return super().do_GET()
