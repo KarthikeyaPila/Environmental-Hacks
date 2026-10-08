@@ -1,0 +1,12 @@
+{
+  "labels": [
+    "pet",
+    "cardboard",
+    "paper",
+    "aluminium",
+    "glass"
+  ],
+  "classificationConfidenceThreshold": 0.8,
+  "requiresConfirmationBelowThreshold": true,
+  "quantitySource": "user_confirmed_weight"
+}
