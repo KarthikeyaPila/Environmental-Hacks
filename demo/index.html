@@ -5,24 +5,72 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Recovery Network Demo</title>
     <style>
-      body { font-family: system-ui, sans-serif; margin: 3rem auto; max-width: 720px; padding: 0 1.25rem; color: #19312a; }
-      .status { border: 1px solid #b9d8c9; border-radius: 12px; padding: 1.25rem; background: #f2fbf5; }
-      code { background: #edf2ef; border-radius: 4px; padding: .15rem .35rem; }
+      :root { color: #18352d; font-family: system-ui, sans-serif; }
+      body { background: #f5faf7; margin: 0; }
+      main { max-width: 980px; margin: auto; padding: 2rem 1.2rem 4rem; }
+      h1 { margin-bottom: .3rem; }
+      .tabs, .actions { display: flex; flex-wrap: wrap; gap: .6rem; margin: 1rem 0; }
+      button { background: #176b4d; border: 0; border-radius: 8px; color: white; cursor: pointer; padding: .65rem .9rem; }
+      button.secondary { background: #dcebe3; color: #18352d; }
+      .panel, .card { background: white; border: 1px solid #d5e5dc; border-radius: 12px; padding: 1rem; }
+      .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+      .muted { color: #5a7168; }
+      .error { color: #a52c2c; font-weight: 600; }
+      pre { background: #10251e; border-radius: 8px; color: #d9f4e5; overflow: auto; padding: 1rem; }
+      input { border: 1px solid #b9cec3; border-radius: 6px; padding: .6rem; width: 100%; box-sizing: border-box; }
+      label { display: block; margin: .7rem 0 .25rem; }
+      .hidden { display: none; }
     </style>
   </head>
   <body>
-    <h1>Recovery Network Demo</h1>
-    <div class="status">
-      <strong>Demo server is running.</strong>
-      <p>This page is now connected to the local JSON API.</p>
-      <button id="loadAreas">Load Delhi opportunities</button>
-      <pre id="output">Click the button to query the backend.</pre>
-    </div>
+    <main>
+      <header>
+        <p class="muted">Environmental Recovery Platform · Delhi proof of concept</p>
+        <h1>Household → Kabadiwala → Recycler</h1>
+        <p class="muted">This temporary interface exercises the real local API.</p>
+      </header>
+      <div class="tabs">
+        <button data-role="household">Household</button>
+        <button data-role="kabadiwala" class="secondary">Kabadiwala</button>
+        <button data-role="recycler" class="secondary">Recycler</button>
+        <button id="reset" class="secondary">Reset demo</button>
+      </div>
+      <section id="household" class="panel">
+        <h2>Household</h2>
+        <div class="actions"><button id="householdInventory">Refresh inventory</button><button id="createRequest">Create collection request</button></div>
+        <div id="householdOutput" class="grid"></div>
+      </section>
+      <section id="kabadiwala" class="panel hidden">
+        <h2>Kabadiwala</h2><p class="muted">Choose a Delhi locality to inspect its recovery opportunities.</p>
+        <div id="areas" class="grid"></div><div id="opportunities"></div><div id="kabadiwalaInventory"></div>
+      </section>
+      <section id="recycler" class="panel hidden">
+        <h2>Recycler</h2>
+        <label for="requiredQuantity">PET requirement (kg)</label><input id="requiredQuantity" type="number" min="1" value="3" />
+        <div class="actions"><button id="createRequirement">Create PET requirement</button><button id="availableMaterial" class="secondary">Refresh available material</button></div>
+        <div id="recyclerOutput" class="grid"></div>
+      </section>
+      <h2>Activity</h2><pre id="log">Start the demo server, then choose a role.</pre>
+    </main>
     <script>
-      document.querySelector('#loadAreas').addEventListener('click', async () => {
-        const response = await fetch('/api/kabadiwalas/kabadiwala_1/areas');
-        document.querySelector('#output').textContent = JSON.stringify(await response.json(), null, 2);
-      });
+      const $ = (selector) => document.querySelector(selector); let requirementId = null;
+      const log = (message, isError = false) => { $('#log').className = isError ? 'error' : ''; $('#log').textContent = typeof message === 'string' ? message : JSON.stringify(message, null, 2); };
+      const request = async (path, options = {}) => { const response = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...options }); const body = await response.json(); if (!response.ok) throw new Error(body.error?.message || 'Request failed'); return body; };
+      const post = (path, body) => request(path, { method: 'POST', body: JSON.stringify(body) });
+      function showRole(role) { ['household', 'kabadiwala', 'recycler'].forEach((name) => $(`#${name}`).classList.toggle('hidden', name !== role)); if (role === 'household') loadHousehold(); if (role === 'kabadiwala') loadAreas(); if (role === 'recycler') loadAvailable(); }
+      async function loadHousehold() { try { const data = await request('/api/households/household_1/inventory'); const active = await request('/api/households/household_1/collection-request'); $('#householdOutput').innerHTML = data.inventory.map((item) => `<div class="card"><strong>${item.materialType}</strong><br>${item.quantityKg} kg<br>₹${item.estimatedValueInr} estimated</div>`).join('') || '<p>No material recorded.</p>'; if (active.request) $('#householdOutput').insertAdjacentHTML('beforeend', `<div class="card"><strong>Request status:</strong> ${active.request.status}</div>`); log({ inventory: data.inventory, request: active.request }); } catch (error) { log(error.message, true); } }
+      async function loadAreas() { try { const data = await request('/api/kabadiwalas/kabadiwala_1/areas'); $('#areas').innerHTML = data.areas.map((area) => `<button class="secondary area" data-area="${area.areaId}">${area.name}<br><small>${area.requestCount} requests · ${area.materialKg} kg · ₹${area.estimatedValueInr}</small></button>`).join(''); document.querySelectorAll('.area').forEach((button) => button.addEventListener('click', () => loadOpportunities(button.dataset.area))); log(data); } catch (error) { log(error.message, true); } }
+      async function loadOpportunities(areaId) { try { const data = await request(`/api/kabadiwalas/kabadiwala_1/areas/${areaId}/opportunities`); $('#opportunities').innerHTML = '<h3>Pickup opportunities</h3>' + (data.opportunities.map((item) => `<div class="card"><strong>${item.requestId}</strong><br>${JSON.stringify(item.quantityByType)} · ₹${item.estimatedValueInr}<br><button class="accept" data-request="${item.requestId}">Accept</button> <button class="collect secondary" data-request="${item.requestId}">Mark collected</button></div>`).join('') || '<p>No pending opportunities in this area.</p>'); document.querySelectorAll('.accept').forEach((button) => button.addEventListener('click', () => changeRequest(button.dataset.request, 'accept'))); document.querySelectorAll('.collect').forEach((button) => button.addEventListener('click', () => changeRequest(button.dataset.request, 'collect'))); log(data); } catch (error) { log(error.message, true); } }
+      async function changeRequest(id, action) { try { log(await post(`/api/collection-requests/${id}/${action}`, { kabadiwalaId: 'kabadiwala_1' })); await loadAreas(); } catch (error) { log(error.message, true); } }
+      async function loadAvailable() { try { const data = await request('/api/recyclers/recycler_1/available-material'); $('#recyclerOutput').innerHTML = data.availableMaterial.map((item) => `<div class="card"><strong>${item.materialType}</strong><br>${item.quantityKg} kg from ${item.kabadiwalaId}<br><button class="book" data-kabadiwala="${item.kabadiwalaId}" data-quantity="${item.quantityKg}" ${requirementId ? '' : 'disabled'}>Book material</button></div>`).join('') || '<p>No collected material yet.</p>'; document.querySelectorAll('.book').forEach((button) => button.addEventListener('click', () => bookMaterial(button.dataset.kabadiwala, Number(button.dataset.quantity)))); log(data); } catch (error) { log(error.message, true); } }
+      async function bookMaterial(kabadiwalaId, availableQuantity) { try { const booking = await post('/api/bookings', { recyclerId: 'recycler_1', requirementId, kabadiwalaId, quantityKg: Math.min(availableQuantity, Number($('#requiredQuantity').value)) }); log(booking); const confirmed = await post(`/api/bookings/${booking.id}/confirm`, { recyclerId: 'recycler_1' }); log(confirmed); await loadAvailable(); } catch (error) { log(error.message, true); } }
+      $('#householdInventory').addEventListener('click', loadHousehold);
+      $('#createRequest').addEventListener('click', async () => { try { log(await post('/api/collection-requests', { householdId: 'household_1' })); await loadHousehold(); } catch (error) { log(error.message, true); } });
+      $('#createRequirement').addEventListener('click', async () => { try { const requirement = await post('/api/recycler-requirements', { recyclerId: 'recycler_1', materialType: 'pet', requiredQuantityKg: Number($('#requiredQuantity').value) }); requirementId = requirement.id; log(requirement); await loadAvailable(); } catch (error) { log(error.message, true); } });
+      $('#availableMaterial').addEventListener('click', loadAvailable);
+      $('#reset').addEventListener('click', async () => { try { await post('/api/demo/reset', {}); showRole('household'); log('Demo reset.'); } catch (error) { log(error.message, true); } });
+      document.querySelectorAll('[data-role]').forEach((button) => button.addEventListener('click', () => showRole(button.dataset.role)));
+      showRole('household');
     </script>
   </body>
 </html>
