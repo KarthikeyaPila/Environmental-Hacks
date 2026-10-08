@@ -77,6 +77,15 @@ classes such as `trash`, and creates deterministic `ml/data/training/` and
 `ml/data/testing/` folders. Add curated and TACO images only after reviewing
 their labels and licenses.
 
+Audit a prepared dataset before uploading it to S3:
+
+```bash
+python3 scripts/audit_dataset.py /tmp/trashnet-prepared
+```
+
+The audit checks expected labels, per-split counts, and filename overlap between
+training and testing data.
+
 ## Model behavior
 
 The backend should normalize inference to:
