@@ -105,6 +105,20 @@ Use a small serverless stack:
 
 Do not introduce additional AWS services without a real implementation requirement.
 
+### AWS efficiency and cost guardrails
+
+- Use `ap-south-1` (Mumbai) unless a service requirement makes another region necessary.
+- Prefer local/mock implementations while business logic is being developed.
+- Keep S3 objects temporary; never upload raw datasets or household images to Git.
+- Use deterministic seed data and scripts instead of repeatedly creating cloud resources.
+- Start Rekognition Custom Labels models only for evaluation/inference and stop them immediately afterward; do not leave models running unattended.
+- Use small, controlled datasets and one model version for the hackathon proof of concept.
+- Check resource names, region, and expected cost before creating buckets, models, or other billable resources.
+- Reuse existing AWS resources when safe; avoid duplicate buckets, projects, models, and stacks.
+- Do not delete or alter existing AWS resources without explicitly confirming the exact target.
+- Verify AWS identity and region before resource creation, and record created resource identifiers in project documentation.
+- Prefer the AWS Free Tier and keep cleanup steps alongside every provisioning step.
+
 Authentication is intentionally omitted for the MVP. Demo users/data can be seeded and role-switched in the application.
 
 ---
