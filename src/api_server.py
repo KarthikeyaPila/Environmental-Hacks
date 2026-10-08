@@ -78,7 +78,7 @@ class DemoHandler(SimpleHTTPRequestHandler):
                 request = next((r for r in service.requests.values() if r.household_id == "household_1"), None)
                 return self._send_json({"request": _request_json(request) if request else None})
             if path == "/api/recyclers/recycler_1/available-material":
-                return self._send_json({"availableMaterial": service.available_material("recycler_1")})
+                return self._send_json({"availableMaterial": [_available_json(item) for item in service.available_material("recycler_1")]})
             if path == "/api/recyclers/recycler_1/requirements":
                 return self._send_json({"requirements": [_requirement_json(r) for r in service.requirements.values() if r.recycler_id == "recycler_1"]})
             return super().do_GET()
@@ -161,6 +161,10 @@ def _requirement_json(requirement) -> dict:
 
 def _booking_json(booking) -> dict:
     return {"id": booking.id, "status": booking.status.value, "materialType": booking.material_type, "quantityKg": booking.quantity_kg, "materialIds": booking.material_ids, "requirementId": booking.requirement_id}
+
+
+def _available_json(item) -> dict:
+    return {"kabadiwalaId": item["kabadiwala_id"], "materialType": item["material_type"], "quantityKg": item["quantity_kg"]}
 
 
 def _inventory(holder_id: str) -> list[dict]:

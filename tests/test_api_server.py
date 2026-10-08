@@ -1,0 +1,81 @@
+import json
+import threading
+import unittest
+from http.client import HTTPConnection
+from http.server import ThreadingHTTPServer
+
+from src import api_server
+
+
+class ApiServerTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.server = ThreadingHTTPServer(("127.0.0.1", 0), api_server.DemoHandler)
+        cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
+        cls.thread.start()
+        cls.host, cls.port = cls.server.server_address
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+        cls.server.server_close()
+        cls.thread.join(timeout=2)
+
+    def setUp(self):
+        api_server.service, api_server.area_service = api_server.build_state()
+
+    def call(self, method, path, payload=None):
+        connection = HTTPConnection(self.host, self.port)
+        body = json.dumps(payload).encode() if payload is not None else None
+        connection.request(method, path, body, {"Content-Type": "application/json"})
+        response = connection.getresponse()
+        result = json.loads(response.read())
+        connection.close()
+        return response.status, result
+
+    def test_http_happy_path(self):
+        status, request = self.call("POST", "/api/collection-requests", {"householdId": "household_1"})
+        self.assertEqual(status, 201)
+        request_id = request["id"]
+
+        status, areas = self.call("GET", "/api/kabadiwalas/kabadiwala_1/areas")
+        self.assertEqual(status, 200)
+        self.assertEqual(sum(area["requestCount"] for area in areas["areas"]), 1)
+        area_id = next(area["areaId"] for area in areas["areas"] if area["requestCount"] == 1)
+
+        status, opportunities = self.call("GET", f"/api/kabadiwalas/kabadiwala_1/areas/{area_id}/opportunities")
+        self.assertEqual(status, 200)
+        self.assertEqual(opportunities["opportunities"][0]["requestId"], request_id)
+
+        status, accepted = self.call("POST", f"/api/collection-requests/{request_id}/accept", {"kabadiwalaId": "kabadiwala_1"})
+        self.assertEqual(status, 200)
+        self.assertEqual(accepted["status"], "accepted")
+        status, collected = self.call("POST", f"/api/collection-requests/{request_id}/collect", {"kabadiwalaId": "kabadiwala_1"})
+        self.assertEqual(status, 200)
+        self.assertEqual(collected["status"], "collected")
+
+        status, requirement = self.call("POST", "/api/recycler-requirements", {"recyclerId": "recycler_1", "materialType": "pet", "requiredQuantityKg": 3})
+        self.assertEqual(status, 201)
+        status, available = self.call("GET", "/api/recyclers/recycler_1/available-material")
+        self.assertEqual(status, 200)
+        pet = next(item for item in available["availableMaterial"] if item["materialType"] == "pet")
+
+        status, booking = self.call("POST", "/api/bookings", {"recyclerId": "recycler_1", "requirementId": requirement["id"], "kabadiwalaId": pet["kabadiwalaId"], "quantityKg": 3})
+        self.assertEqual(status, 201)
+        status, reserved = self.call("GET", "/api/recyclers/recycler_1/available-material")
+        self.assertEqual(status, 200)
+        self.assertEqual(reserved["availableMaterial"], [{"kabadiwalaId": pet["kabadiwalaId"], "materialType": "cardboard", "quantityKg": 2}])
+
+        status, confirmed = self.call("POST", f"/api/bookings/{booking['id']}/confirm", {"recyclerId": "recycler_1"})
+        self.assertEqual(status, 200)
+        self.assertEqual(confirmed["status"], "completed")
+
+    def test_http_rejects_invalid_transition(self):
+        _, request = self.call("POST", "/api/collection-requests", {"householdId": "household_1"})
+        status, error = self.call("POST", f"/api/collection-requests/{request['id']}/collect", {"kabadiwalaId": "kabadiwala_1"})
+        self.assertEqual(status, 400)
+        self.assertEqual(error["error"]["code"], "INVALID_REQUEST")
+
+
+if __name__ == "__main__":
+    unittest.main()
