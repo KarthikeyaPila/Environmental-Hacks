@@ -21,6 +21,7 @@ except ImportError:  # boto3 is optional for local mock mode
 from .area_opportunities import AreaOpportunityService
 from .image_classifier import classify_s3_object, classify_with_rekognition
 from .image_storage import create_upload, delete_upload
+from .route_planner import plan_preview
 from .recovery_domain import Profile, RecoveryService, RequestStatus, Role
 
 
@@ -112,6 +113,8 @@ class DemoHandler(SimpleHTTPRequestHandler):
                 return self._send_json({"availableMaterial": [_available_json(item) for item in service.available_material("recycler_1")]})
             if path == "/api/recyclers/recycler_1/requirements":
                 return self._send_json({"requirements": [_requirement_json(r) for r in service.requirements.values() if r.recycler_id == "recycler_1"]})
+            if path == "/api/kabadiwalas/kabadiwala_1/route":
+                raise ValueError("route planning requires POST")
             if path == "/api/recyclers/recycler_1/bookings":
                 return self._send_json({"bookings": [_booking_json(b) for b in service.bookings.values() if b.recycler_id == "recycler_1"]})
             if path == "/api/households/household_1/metrics":
@@ -155,6 +158,11 @@ class DemoHandler(SimpleHTTPRequestHandler):
                 if content_type not in {"image/jpeg", "image/png"}:
                     raise ValueError("only JPG and PNG images are supported")
                 return self._send_json(create_upload(os.getenv("ML_S3_BUCKET", "environmental-recovery-ml-132218943520"), content_type, filename))
+            if path == "/api/kabadiwalas/kabadiwala_1/route":
+                request_ids = payload.get("requestIds", [])
+                opportunities = [item for item in area_service.opportunities(payload.get("areaId", ""), service.requests.values()) if item["requestId"] in request_ids]
+                stops = [{"requestId": item["requestId"], "latitude": item["approximateLatitude"], "longitude": item["approximateLongitude"]} for item in opportunities]
+                return self._send_json(plan_preview({"latitude": 28.6800, "longitude": 77.1500}, stops))
             if path == "/api/collection-requests":
                 household_id = payload["householdId"]
                 active = [r for r in service.requests.values() if r.household_id == household_id and r.status in (RequestStatus.PENDING, RequestStatus.ACCEPTED)]

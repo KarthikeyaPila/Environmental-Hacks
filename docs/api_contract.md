@@ -244,6 +244,30 @@ dominant material per image. Mixed-material scenes require a future multi-label
 or object-detection model. If the model is starting or stopped, the API returns
 HTTP `503` with error code `AWS_SERVICE_ERROR`; show a retry message.
 
+## Kabadiwala map and route planning
+
+### `POST /api/kabadiwalas/{kabadiwalaId}/route`
+
+The frontend sends selected request IDs and an area ID. The backend returns
+privacy-safe approximate stop coordinates only; it never exposes household
+addresses or exact home locations.
+
+Request:
+
+```json
+{
+  "areaId": "area_rohini",
+  "requestIds": ["req_123", "req_456"],
+  "optimizeFor": "distance"
+}
+```
+
+The response contains `mode`, ordered `stops`, a `route` polyline coordinate
+list, `totalDistanceKm`, and `estimatedDurationMinutes`. Stop numbers define
+the pickup order. The current backend uses a deterministic local preview; it
+will later be replaced by Amazon Location Routes `OptimizeWaypoints` without
+changing this frontend contract.
+
 Response:
 
 ```json

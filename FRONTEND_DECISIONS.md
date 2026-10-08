@@ -120,6 +120,24 @@ POST /api/image-upload → PUT uploadUrl → POST /api/classify-image → confir
 The backend deletes the temporary S3 object after classification. If direct S3
 upload is blocked in local development, the demo has an API fallback.
 
+## Kabadiwala map and route experience
+
+When a kabadiwala selects a Delhi locality:
+
+1. Zoom the map to the locality `center` returned by the areas endpoint.
+2. Render one privacy-safe approximate pin per pending opportunity.
+3. Do not render household names, addresses, phone numbers, or exact homes.
+4. Let the kabadiwala select stops and click **Plan route**.
+5. Call `POST /api/kabadiwalas/{kabadiwalaId}/route` with `areaId` and the
+   selected `requestIds`.
+6. Draw the returned `route` as a polyline and show ordered stop numbers,
+   total distance, and estimated duration.
+
+The current response uses `mode: local-preview` and deterministic nearest-
+neighbour ordering. Keep the UI independent of this mode because the same
+contract will later return an Amazon Location road-aware route. Use
+`optimizeFor: distance` for the demo; a future option can support `time`.
+
 Important endpoints include:
 
 ```text
