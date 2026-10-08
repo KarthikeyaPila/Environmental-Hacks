@@ -47,7 +47,12 @@ class AreaOpportunityService:
                 continue
             area = self.area_for(request.latitude, request.longitude)
             grouped[area.id].append(request)
-        return [self._summary(area, grouped[area.id]) for area in self.areas]
+        summaries = [self._summary(area, grouped[area.id]) for area in self.areas]
+        ranked = sorted(summaries, key=lambda item: (item["estimatedValueInr"], item["materialKg"]), reverse=True)
+        ranks = {item["areaId"]: index + 1 for index, item in enumerate(ranked)}
+        for summary in summaries:
+            summary["opportunityRank"] = ranks[summary["areaId"]]
+        return summaries
 
     def opportunities(self, area_id: str, requests: Iterable[CollectionRequest]) -> list[dict]:
         area = self._area(area_id)
@@ -75,11 +80,16 @@ class AreaOpportunityService:
 
     @staticmethod
     def _summary(area: DelhiArea, requests: list[CollectionRequest]) -> dict:
+        material_breakdown: dict[str, float] = {}
+        for request in requests:
+            for material_type, quantity in request.quantity_by_type.items():
+                material_breakdown[material_type] = round(material_breakdown.get(material_type, 0) + quantity, 3)
         return {
             "areaId": area.id,
             "name": area.name,
             "requestCount": len(requests),
             "materialKg": round(sum(sum(request.quantity_by_type.values()) for request in requests), 3),
             "estimatedValueInr": round(sum(request.estimated_value for request in requests)),
+            "materialBreakdown": material_breakdown,
             "center": {"latitude": area.center_latitude, "longitude": area.center_longitude},
         }

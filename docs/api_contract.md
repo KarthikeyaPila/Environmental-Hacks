@@ -116,6 +116,8 @@ Returns Delhi area summaries visible to the kabadiwala.
       "requestCount": 12,
       "materialKg": 31.0,
       "estimatedValueInr": 1840,
+      "opportunityRank": 1,
+      "materialBreakdown": {"pet": 12.0, "cardboard": 19.0},
       "isActiveForCollector": true
     }
   ]
