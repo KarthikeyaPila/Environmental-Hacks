@@ -29,6 +29,10 @@
       .eyebrow { font-size: .76rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
       .flow { color: #4d6d5d; display: flex; flex-wrap: wrap; font-size: .9rem; gap: .55rem; margin: 1.2rem 0; }
       .flow span { background: #dcebe3; border-radius: 99px; padding: .45rem .75rem; }
+      .resources { margin-top: 1.5rem; }
+      .resource-list { display: grid; gap: .7rem; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+      .resource-list a { background: #f7fbf8; border: 1px solid #d5e5dc; border-radius: 9px; color: #176b4d; padding: .75rem; text-decoration: none; }
+      .resource-list a:hover { background: #e2f0e7; }
       .error { color: #a52c2c; font-weight: 600; }
       pre { background: #10251e; border-radius: 8px; color: #d9f4e5; overflow: auto; padding: 1rem; }
       input { border: 1px solid #b9cec3; border-radius: 6px; padding: .6rem; width: 100%; box-sizing: border-box; }
@@ -73,6 +77,21 @@
         <div id="recyclerOutput" class="grid"></div>
       </section>
       <h2>Activity</h2><pre id="log">Start the demo server, then choose a role.</pre>
+      <section class="panel resources">
+        <p class="eyebrow muted">Shared reading</p>
+        <h2>Image processing resources</h2>
+        <p class="muted">References for the optional recyclable-material image assistant.</p>
+        <div class="resource-list">
+          <a href="https://docs.aws.amazon.com/rekognition/latest/customlabels-dg/understanding-custom-labels.html" target="_blank" rel="noreferrer">Understand Rekognition Custom Labels ↗</a>
+          <a href="https://docs.aws.amazon.com/rekognition/latest/customlabels-dg/md-create-dataset.html" target="_blank" rel="noreferrer">Create training and test datasets ↗</a>
+          <a href="https://docs.aws.amazon.com/rekognition/latest/customlabels-dg/tutorial-classification.html" target="_blank" rel="noreferrer">Classify images with Custom Labels ↗</a>
+          <a href="https://docs.aws.amazon.com/cli/latest/reference/rekognition/detect-custom-labels.html" target="_blank" rel="noreferrer">Detect custom labels API ↗</a>
+          <a href="https://github.com/garythung/trashnet" target="_blank" rel="noreferrer">TrashNet dataset ↗</a>
+          <a href="https://arxiv.org/abs/2003.06975" target="_blank" rel="noreferrer">TACO dataset paper ↗</a>
+          <a href="https://github.com/pedropro/TACO" target="_blank" rel="noreferrer">TACO dataset repository ↗</a>
+          <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/intro-lifecycle-rules.html" target="_blank" rel="noreferrer">S3 lifecycle rules ↗</a>
+        </div>
+      </section>
     </main>
     <script>
       const $ = (selector) => document.querySelector(selector); let requirementId = null;
