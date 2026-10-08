@@ -32,6 +32,8 @@
       .error { color: #a52c2c; font-weight: 600; }
       pre { background: #10251e; border-radius: 8px; color: #d9f4e5; overflow: auto; padding: 1rem; }
       input { border: 1px solid #b9cec3; border-radius: 6px; padding: .6rem; width: 100%; box-sizing: border-box; }
+      select { border: 1px solid #b9cec3; border-radius: 6px; padding: .6rem; width: 100%; box-sizing: border-box; background: white; }
+      .form-row { align-items: end; display: grid; gap: .8rem; grid-template-columns: 1fr 1fr auto; margin: 1rem 0; }
       label { display: block; margin: .7rem 0 .25rem; }
       .hidden { display: none; }
     </style>
@@ -52,6 +54,11 @@
       </div>
       <section id="household" class="panel">
         <p class="eyebrow muted">Role 01</p><h2>Household recovery inventory</h2>
+        <div class="form-row">
+          <div><label for="materialType">Material</label><select id="materialType"><option value="pet">PET / plastic bottle</option><option value="cardboard">Cardboard</option><option value="paper">Paper</option><option value="aluminium">Aluminium / metal</option><option value="glass">Glass</option><option value="wood">Wood</option></select></div>
+          <div><label for="quantityKg">Estimated weight (kg)</label><input id="quantityKg" type="number" min="0.1" step="0.1" value="1" /></div>
+          <button id="addMaterial">Add material</button>
+        </div>
         <div class="actions"><button id="householdInventory">Refresh inventory</button><button id="createRequest">Create collection request</button></div>
         <div id="householdOutput" class="grid"></div>
       </section>
@@ -80,6 +87,7 @@
       async function loadAvailable() { try { const data = await request('/api/recyclers/recycler_1/available-material'); $('#recyclerOutput').innerHTML = data.availableMaterial.map((item) => `<div class="card"><strong>${item.materialType}</strong><br>${item.quantityKg} kg from ${item.kabadiwalaId}<br><button class="book" data-kabadiwala="${item.kabadiwalaId}" data-quantity="${item.quantityKg}" ${requirementId ? '' : 'disabled'}>Book material</button></div>`).join('') || '<p>No collected material yet.</p>'; document.querySelectorAll('.book').forEach((button) => button.addEventListener('click', () => bookMaterial(button.dataset.kabadiwala, Number(button.dataset.quantity)))); log(data); } catch (error) { log(error.message, true); } }
       async function bookMaterial(kabadiwalaId, availableQuantity) { try { const booking = await post('/api/bookings', { recyclerId: 'recycler_1', requirementId, kabadiwalaId, quantityKg: Math.min(availableQuantity, Number($('#requiredQuantity').value)) }); log(booking); const confirmed = await post(`/api/bookings/${booking.id}/confirm`, { recyclerId: 'recycler_1' }); log(confirmed); await loadAvailable(); } catch (error) { log(error.message, true); } }
       $('#householdInventory').addEventListener('click', loadHousehold);
+      $('#addMaterial').addEventListener('click', async () => { try { const material = await post('/api/materials', { userId: 'household_1', materialType: $('#materialType').value, quantityKg: Number($('#quantityKg').value) }); log(material); await loadHousehold(); } catch (error) { log(error.message, true); } });
       $('#createRequest').addEventListener('click', async () => { try { log(await post('/api/collection-requests', { householdId: 'household_1' })); await loadHousehold(); } catch (error) { log(error.message, true); } });
       $('#createRequirement').addEventListener('click', async () => { try { const requirement = await post('/api/recycler-requirements', { recyclerId: 'recycler_1', materialType: 'pet', requiredQuantityKg: Number($('#requiredQuantity').value) }); requirementId = requirement.id; log(requirement); await loadAvailable(); } catch (error) { log(error.message, true); } });
       $('#availableMaterial').addEventListener('click', loadAvailable);
