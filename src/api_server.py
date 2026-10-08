@@ -18,21 +18,27 @@ from .recovery_domain import Profile, RecoveryService, RequestStatus, Role
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def build_state() -> tuple[RecoveryService, AreaOpportunityService]:
+def build_state(with_demo_requests: bool = False) -> tuple[RecoveryService, AreaOpportunityService]:
     service = RecoveryService()
     service.add_profile(Profile("household_1", Role.HOUSEHOLD, "Household A", 28.7042, 77.1024))
     service.add_profile(Profile("household_2", Role.HOUSEHOLD, "Household B", 28.6450, 77.2165))
+    service.add_profile(Profile("household_3", Role.HOUSEHOLD, "Household C", 28.5677, 77.2433))
+    service.add_profile(Profile("household_4", Role.HOUSEHOLD, "Household D", 28.5921, 77.0460))
     service.add_profile(Profile("kabadiwala_1", Role.KABADIWALA, "Ramesh Recovery", 28.6800, 77.1500, 1, {"pet", "cardboard", "paper", "aluminium", "glass", "wood"}))
     service.add_profile(Profile("recycler_1", Role.RECYCLER, "GreenCycle Delhi", 28.6500, 77.2000))
     first = service.add_material("household_1", "pet", 4)
     service.add_material("household_1", "cardboard", 2)
     second = service.add_material("household_2", "aluminium", 1.5)
-    # The demo starts with material available at households, but no request yet.
-    # This lets the presenter create the request live from the household role.
+    third = service.add_material("household_3", "paper", 8)
+    fourth = service.add_material("household_4", "glass", 12)
+    if with_demo_requests:
+        service.create_collection_request("household_2", [second.id])
+        service.create_collection_request("household_3", [third.id])
+        service.create_collection_request("household_4", [fourth.id])
     return service, AreaOpportunityService()
 
 
-service, area_service = build_state()
+service, area_service = build_state(with_demo_requests=True)
 
 
 class DemoHandler(SimpleHTTPRequestHandler):
@@ -91,7 +97,7 @@ class DemoHandler(SimpleHTTPRequestHandler):
         payload = self._body()
         try:
             if path == "/api/demo/reset":
-                service, area_service = build_state()
+                service, area_service = build_state(with_demo_requests=True)
                 return self._send_json({"ok": True})
             if path == "/api/materials":
                 material = service.add_material(payload["userId"], payload["materialType"], float(payload["quantityKg"]))
