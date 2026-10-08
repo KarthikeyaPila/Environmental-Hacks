@@ -86,6 +86,19 @@ python3 scripts/audit_dataset.py /tmp/trashnet-prepared
 The audit checks expected labels, per-split counts, and filename overlap between
 training and testing data.
 
+For TACO, retain the COCO bounding-box annotations and use:
+
+```bash
+python3 scripts/prepare_taco_dataset.py \
+  /path/to/TACO/data/annotations.json \
+  /path/to/TACO/data \
+  --output /tmp/taco-prepared
+```
+
+The adapter maps selected TACO categories into our five labels and skips
+categories that are not appropriate for the first model. Review the mapping in
+`scripts/prepare_taco_dataset.py` before using the output for training.
+
 ## Model behavior
 
 The backend should normalize inference to:
