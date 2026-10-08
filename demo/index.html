@@ -5,16 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Recovery Network Demo</title>
     <style>
-      :root { color: #18352d; font-family: system-ui, sans-serif; }
-      body { background: #f5faf7; margin: 0; }
-      main { max-width: 980px; margin: auto; padding: 2rem 1.2rem 4rem; }
-      h1 { margin-bottom: .3rem; }
+      :root { color: #17362b; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+      body { background: #eef7f1; margin: 0; }
+      main { max-width: 1080px; margin: auto; padding: 2rem 1.2rem 4rem; }
+      header { background: linear-gradient(135deg, #174f3a, #2b8961); border-radius: 22px; color: white; padding: 2rem; box-shadow: 0 18px 40px #174f3a22; }
+      header .muted { color: #d7f1df; }
+      h1 { font-size: clamp(2rem, 5vw, 3.6rem); letter-spacing: -.06em; line-height: 1; margin: .3rem 0 1rem; max-width: 680px; }
+      h2 { margin-top: 0; }
       .tabs, .actions { display: flex; flex-wrap: wrap; gap: .6rem; margin: 1rem 0; }
-      button { background: #176b4d; border: 0; border-radius: 8px; color: white; cursor: pointer; padding: .65rem .9rem; }
-      button.secondary { background: #dcebe3; color: #18352d; }
-      .panel, .card { background: white; border: 1px solid #d5e5dc; border-radius: 12px; padding: 1rem; }
+      .tabs { background: white; border: 1px solid #d5e5dc; border-radius: 14px; padding: .45rem; }
+      button { background: #176b4d; border: 0; border-radius: 9px; color: white; cursor: pointer; font: inherit; padding: .7rem 1rem; transition: transform .15s, box-shadow .15s; }
+      button:hover { box-shadow: 0 5px 12px #176b4d2b; transform: translateY(-1px); }
+      button.secondary { background: #e2f0e7; color: #18352d; }
+      button.active { background: #17362b; color: white; }
+      .panel { background: white; border: 1px solid #d5e5dc; border-radius: 18px; box-shadow: 0 10px 28px #174f3a0c; padding: 1.4rem; }
+      .card { background: #f7fbf8; border: 1px solid #d5e5dc; border-radius: 13px; padding: 1rem; }
+      .card strong { color: #176b4d; font-size: 1.05rem; }
       .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+      .area { background: #f7fbf8; border: 1px solid #d5e5dc; color: #18352d; text-align: left; }
+      .area:hover { border-color: #51a97a; }
+      .area small { color: #5a7168; display: inline-block; line-height: 1.5; margin-top: .4rem; }
       .muted { color: #5a7168; }
+      .eyebrow { font-size: .76rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+      .flow { color: #4d6d5d; display: flex; flex-wrap: wrap; font-size: .9rem; gap: .55rem; margin: 1.2rem 0; }
+      .flow span { background: #dcebe3; border-radius: 99px; padding: .45rem .75rem; }
       .error { color: #a52c2c; font-weight: 600; }
       pre { background: #10251e; border-radius: 8px; color: #d9f4e5; overflow: auto; padding: 1rem; }
       input { border: 1px solid #b9cec3; border-radius: 6px; padding: .6rem; width: 100%; box-sizing: border-box; }
@@ -25,27 +39,28 @@
   <body>
     <main>
       <header>
-        <p class="muted">Environmental Recovery Platform · Delhi proof of concept</p>
+        <p class="eyebrow">Environmental Recovery Platform · Delhi proof of concept</p>
         <h1>Household → Kabadiwala → Recycler</h1>
-        <p class="muted">This temporary interface exercises the real local API.</p>
+        <p class="muted">A lightweight coordination layer connecting households, kabadiwalas, and recyclers.</p>
       </header>
+      <div class="flow"><span>1 · Household records material</span><span>2 · Kabadiwala collects</span><span>3 · Recycler confirms transfer</span></div>
       <div class="tabs">
-        <button data-role="household">Household</button>
+        <button data-role="household" class="active">Household</button>
         <button data-role="kabadiwala" class="secondary">Kabadiwala</button>
         <button data-role="recycler" class="secondary">Recycler</button>
         <button id="reset" class="secondary">Reset demo</button>
       </div>
       <section id="household" class="panel">
-        <h2>Household</h2>
+        <p class="eyebrow muted">Role 01</p><h2>Household recovery inventory</h2>
         <div class="actions"><button id="householdInventory">Refresh inventory</button><button id="createRequest">Create collection request</button></div>
         <div id="householdOutput" class="grid"></div>
       </section>
       <section id="kabadiwala" class="panel hidden">
-        <h2>Kabadiwala</h2><p class="muted">Choose a Delhi locality to inspect its recovery opportunities.</p>
+        <p class="eyebrow muted">Role 02</p><h2>Kabadiwala collection view</h2><p class="muted">Choose a Delhi locality to inspect its recovery opportunities.</p>
         <div id="areas" class="grid"></div><div id="opportunities"></div><div id="kabadiwalaInventory"></div>
       </section>
       <section id="recycler" class="panel hidden">
-        <h2>Recycler</h2>
+        <p class="eyebrow muted">Role 03</p><h2>Recycler demand and supply</h2>
         <label for="requiredQuantity">PET requirement (kg)</label><input id="requiredQuantity" type="number" min="1" value="3" />
         <div class="actions"><button id="createRequirement">Create PET requirement</button><button id="availableMaterial" class="secondary">Refresh available material</button></div>
         <div id="recyclerOutput" class="grid"></div>
@@ -57,7 +72,7 @@
       const log = (message, isError = false) => { $('#log').className = isError ? 'error' : ''; $('#log').textContent = typeof message === 'string' ? message : JSON.stringify(message, null, 2); };
       const request = async (path, options = {}) => { const response = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...options }); const body = await response.json(); if (!response.ok) throw new Error(body.error?.message || 'Request failed'); return body; };
       const post = (path, body) => request(path, { method: 'POST', body: JSON.stringify(body) });
-      function showRole(role) { ['household', 'kabadiwala', 'recycler'].forEach((name) => $(`#${name}`).classList.toggle('hidden', name !== role)); if (role === 'household') loadHousehold(); if (role === 'kabadiwala') loadAreas(); if (role === 'recycler') loadAvailable(); }
+      function showRole(role) { ['household', 'kabadiwala', 'recycler'].forEach((name) => { $(`#${name}`).classList.toggle('hidden', name !== role); $(`[data-role="${name}"]`).classList.toggle('active', name === role); }); if (role === 'household') loadHousehold(); if (role === 'kabadiwala') loadAreas(); if (role === 'recycler') loadAvailable(); }
       async function loadHousehold() { try { const data = await request('/api/households/household_1/inventory'); const active = await request('/api/households/household_1/collection-request'); $('#householdOutput').innerHTML = data.inventory.map((item) => `<div class="card"><strong>${item.materialType}</strong><br>${item.quantityKg} kg<br>₹${item.estimatedValueInr} estimated</div>`).join('') || '<p>No material recorded.</p>'; if (active.request) $('#householdOutput').insertAdjacentHTML('beforeend', `<div class="card"><strong>Request status:</strong> ${active.request.status}</div>`); log({ inventory: data.inventory, request: active.request }); } catch (error) { log(error.message, true); } }
       async function loadAreas() { try { const data = await request('/api/kabadiwalas/kabadiwala_1/areas'); $('#areas').innerHTML = data.areas.map((area) => `<button class="secondary area" data-area="${area.areaId}">${area.name}<br><small>${area.requestCount} requests · ${area.materialKg} kg · ₹${area.estimatedValueInr}</small></button>`).join(''); document.querySelectorAll('.area').forEach((button) => button.addEventListener('click', () => loadOpportunities(button.dataset.area))); log(data); } catch (error) { log(error.message, true); } }
       async function loadOpportunities(areaId) { try { const data = await request(`/api/kabadiwalas/kabadiwala_1/areas/${areaId}/opportunities`); $('#opportunities').innerHTML = '<h3>Pickup opportunities</h3>' + (data.opportunities.map((item) => `<div class="card"><strong>${item.requestId}</strong><br>${JSON.stringify(item.quantityByType)} · ₹${item.estimatedValueInr}<br><button class="accept" data-request="${item.requestId}">Accept</button> <button class="collect secondary" data-request="${item.requestId}">Mark collected</button></div>`).join('') || '<p>No pending opportunities in this area.</p>'); document.querySelectorAll('.accept').forEach((button) => button.addEventListener('click', () => changeRequest(button.dataset.request, 'accept'))); document.querySelectorAll('.collect').forEach((button) => button.addEventListener('click', () => changeRequest(button.dataset.request, 'collect'))); log(data); } catch (error) { log(error.message, true); } }
