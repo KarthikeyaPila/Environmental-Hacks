@@ -314,6 +314,45 @@ class RecoveryService:
             by_type[material.material_type] = by_type.get(material.material_type, 0) + material.quantity_kg
         return {"material_kg": round(sum(by_type.values()), 3), "by_type": by_type, "collections_completed": sum(r.status == RequestStatus.COLLECTED for r in self.requests.values() if r.household_id == household_id)}
 
+    def household_metrics(self, household_id: str) -> dict:
+        self._require_role(household_id, Role.HOUSEHOLD)
+        records = [m for m in self.materials.values() if m.source_id == household_id]
+        tracked = [m for m in records if m.status in {"collected", "reserved", "transferred"}]
+        by_type = _sum_by_type(tracked)
+        destinations = sorted({m.destination_id for m in tracked if m.destination_id})
+        return {
+            "totalRecordedKg": round(sum(m.quantity_kg for m in records), 3),
+            "totalCollectedKg": round(sum(m.quantity_kg for m in tracked), 3),
+            "byMaterialType": by_type,
+            "estimatedValueInr": round(sum(m.estimated_value for m in records)),
+            "collectionsCompleted": sum(r.status == RequestStatus.COLLECTED for r in self.requests.values() if r.household_id == household_id),
+            "downstreamDestinations": destinations,
+        }
+
+    def kabadiwala_metrics(self, kabadiwala_id: str) -> dict:
+        self._require_role(kabadiwala_id, Role.KABADIWALA)
+        records = [m for m in self.materials.values() if m.current_holder_id == kabadiwala_id and m.status in {"collected", "reserved"}]
+        by_type = _sum_by_type(records)
+        requests = [r for r in self.requests.values() if r.assigned_kabadiwala_id == kabadiwala_id]
+        return {
+            "requestsAccepted": sum(r.status in {RequestStatus.ACCEPTED, RequestStatus.COLLECTED} for r in requests),
+            "collectionsCompleted": sum(r.status == RequestStatus.COLLECTED for r in requests),
+            "totalCollectedKg": round(sum(m.quantity_kg for m in records), 3),
+            "estimatedRevenueInr": round(sum(m.estimated_value for m in records)),
+            "byMaterialType": by_type,
+        }
+
+    def recycler_metrics(self, recycler_id: str) -> dict:
+        self._require_role(recycler_id, Role.RECYCLER)
+        requirements = [r for r in self.requirements.values() if r.recycler_id == recycler_id]
+        bookings = [b for b in self.bookings.values() if b.recycler_id == recycler_id]
+        return {
+            "requirements": [{"id": r.id, "materialType": r.material_type, "requiredQuantityKg": r.required_quantity_kg, "fulfilledQuantityKg": r.fulfilled_quantity_kg, "status": r.status.value} for r in requirements],
+            "fulfilledQuantityKg": round(sum(r.fulfilled_quantity_kg for r in requirements), 3),
+            "completedBookings": sum(b.status == BookingStatus.COMPLETED for b in bookings),
+            "reservedBookings": sum(b.status == BookingStatus.CONFIRMED for b in bookings),
+        }
+
     def _get_material(self, material_id: str) -> MaterialRecord:
         if material_id not in self.materials:
             raise ValueError("material not found")
@@ -350,6 +389,13 @@ class RecoveryService:
 
 def default_rates() -> list[MaterialRate]:
     return [MaterialRate("pet", 25), MaterialRate("cardboard", 12), MaterialRate("paper", 15), MaterialRate("aluminium", 100), MaterialRate("glass", 5)]
+
+
+def _sum_by_type(records: Iterable[MaterialRecord]) -> dict[str, float]:
+    result: dict[str, float] = {}
+    for record in records:
+        result[record.material_type] = round(result.get(record.material_type, 0) + record.quantity_kg, 3)
+    return result
 
 
 def distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
