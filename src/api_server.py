@@ -12,6 +12,12 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
+try:
+    from botocore.exceptions import ClientError
+except ImportError:  # boto3 is optional for local mock mode
+    class ClientError(Exception):
+        pass
+
 from .area_opportunities import AreaOpportunityService
 from .image_classifier import classify_s3_object, classify_with_rekognition
 from .image_storage import create_upload, delete_upload
@@ -173,6 +179,8 @@ class DemoHandler(SimpleHTTPRequestHandler):
                 booking = service.confirm_booking(payload["recyclerId"], path.split("/")[-2])
                 return self._send_json(_booking_json(booking))
             return self._send_json({"error": {"code": "NOT_FOUND", "message": "endpoint not found"}}, 404)
+        except ClientError as exc:
+            self._send_json({"error": {"code": "AWS_SERVICE_ERROR", "message": exc.response.get("Error", {}).get("Message", "AWS request failed")}}, 503)
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
             self._send_json({"error": {"code": "INVALID_REQUEST", "message": str(exc)}}, 400)
 
