@@ -125,6 +125,26 @@ The model never determines quantity; weight remains user-entered.
 
 ## AWS path
 
+The current AWS staging dataset is in the private bucket
+`s3://environmental-recovery-ml-132218943520/` in `ap-south-1`:
+
+- Training manifest: `manifests/trashnet/training.manifest.jsonl`
+- Testing manifest: `manifests/trashnet/testing.manifest.jsonl`
+- Images: `datasets/trashnet/{training,testing}/{label}/...`
+
+Recreate the manifests locally with:
+
+```bash
+python3 scripts/create_rekognition_manifests.py /path/to/prepared \
+  --bucket environmental-recovery-ml-132218943520 \
+  --output /tmp/rekognition-manifests
+```
+
+The model label `pet` is the app's canonical label for PET/plastic bottles.
+The remaining AWS steps are dataset creation, one training run, test-result
+review, and a short inference demo. Stop the model after testing to avoid
+runtime charges.
+
 1. Create a Rekognition Custom Labels project.
 2. Upload separate training and testing datasets from S3.
 3. Train and inspect per-label performance.
