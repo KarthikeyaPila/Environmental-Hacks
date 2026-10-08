@@ -11,6 +11,18 @@ from decimal import Decimal
 from enum import Enum
 from typing import Any
 
+from .recovery_domain import (
+    Booking,
+    BookingStatus,
+    CollectionRequest,
+    MaterialRecord,
+    Profile,
+    RecyclerRequirement,
+    RequirementStatus,
+    RequestStatus,
+    Role,
+)
+
 
 def _native(value: Any) -> Any:
     if isinstance(value, Enum):
@@ -88,3 +100,23 @@ class DynamoRecoveryRepository:
                 self.put_requirement(requirement)
             for booking in service.bookings.values():
                 self.put_booking(booking)
+
+    def load_service(self, service) -> None:
+        """Restore persisted entities into an existing RecoveryService."""
+        response = self.table.scan()
+        items = response.get("Items", [])
+        while response.get("LastEvaluatedKey"):
+            response = self.table.scan(ExclusiveStartKey=response["LastEvaluatedKey"])
+            items.extend(response.get("Items", []))
+        for item in items:
+            kind = item.get("sk")
+            if kind == "PROFILE":
+                service.profiles[item["id"]] = Profile(item["id"], Role(item["role"]), item["name"], float(item["latitude"]), float(item["longitude"]), float(item.get("service_radius_km", 0)), set(item.get("supported_materials", [])), float(item.get("demo_rating", 0)), float(item.get("payout_index", 1)))
+            elif kind == "MATERIAL":
+                service.materials[item["id"]] = MaterialRecord(item["id"], item["material_type"], float(item["quantity_kg"]), float(item["estimated_value"]), item["source_id"], item["current_holder_id"], item.get("status", "available"), item.get("destination_id"), item["created_at"], item["updated_at"])
+            elif kind == "REQUEST":
+                service.requests[item["id"]] = CollectionRequest(item["id"], item["household_id"], list(item["material_ids"]), {key: float(value) for key, value in item["quantity_by_type"].items()}, float(item["estimated_value"]), float(item["latitude"]), float(item["longitude"]), RequestStatus(item["status"]), item.get("assigned_kabadiwala_id"), item["created_at"], item["updated_at"])
+            elif kind == "REQUIREMENT":
+                service.requirements[item["id"]] = RecyclerRequirement(item["id"], item["recycler_id"], item["material_type"], float(item["required_quantity_kg"]), float(item.get("fulfilled_quantity_kg", 0)), RequirementStatus(item["status"]), item["created_at"], item["updated_at"])
+            elif kind == "BOOKING":
+                service.bookings[item["id"]] = Booking(item["id"], item["recycler_id"], item["kabadiwala_id"], item["requirement_id"], item["material_type"], float(item["quantity_kg"]), list(item.get("material_ids", [])), BookingStatus(item["status"]), item["created_at"], item["updated_at"])

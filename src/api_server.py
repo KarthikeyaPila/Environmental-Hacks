@@ -40,7 +40,18 @@ def build_state(with_demo_requests: bool = False) -> tuple[RecoveryService, Area
     return service, AreaOpportunityService()
 
 
-service, area_service = build_state(with_demo_requests=True)
+repository = None
+if os.getenv("DYNAMODB_ENABLED", "false").lower() == "true":
+    from .dynamodb_repository import DynamoRecoveryRepository
+
+    service, area_service = build_state(with_demo_requests=False)
+    repository = DynamoRecoveryRepository(
+        table_name=os.getenv("DYNAMODB_TABLE", "environmental-recovery"),
+        region_name=os.getenv("AWS_REGION", "ap-south-1"),
+    )
+    repository.load_service(service)
+else:
+    service, area_service = build_state(with_demo_requests=True)
 
 
 class DemoHandler(SimpleHTTPRequestHandler):
@@ -48,6 +59,8 @@ class DemoHandler(SimpleHTTPRequestHandler):
         super().__init__(*args, directory=str(ROOT / "demo"), **kwargs)
 
     def _send_json(self, payload: dict, status: int = 200) -> None:
+        if repository is not None and getattr(self, "_persist_after_response", False) and status < 400:
+            repository.save_service(service)
         body = json.dumps(payload).encode()
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
@@ -108,6 +121,7 @@ class DemoHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         global service, area_service
+        self._persist_after_response = True
         path = urlparse(self.path).path.rstrip("/")
         payload = self._body()
         try:
@@ -151,6 +165,7 @@ class DemoHandler(SimpleHTTPRequestHandler):
             self._send_json({"error": {"code": "INVALID_REQUEST", "message": str(exc)}}, 400)
 
     def do_PUT(self):
+        self._persist_after_response = True
         path = urlparse(self.path).path.rstrip("/")
         payload = self._body()
         try:
@@ -162,6 +177,7 @@ class DemoHandler(SimpleHTTPRequestHandler):
             self._send_json({"error": {"code": "INVALID_REQUEST", "message": str(exc)}}, 400)
 
     def do_DELETE(self):
+        self._persist_after_response = True
         path = urlparse(self.path).path.rstrip("/")
         try:
             if path.startswith("/api/materials/"):
