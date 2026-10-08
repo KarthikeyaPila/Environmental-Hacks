@@ -37,7 +37,15 @@ python3 -m unittest discover -s tests -v
 python3 -m py_compile src/recovery_domain.py
 ```
 
+Run the temporary demo website:
+
+```bash
+./scripts/run_demo.sh
+```
+
+Then open `http://localhost:8080`. Set a different port with
+`PORT=3000 ./scripts/run_demo.sh`.
+
 Do not commit credentials, local environment files, generated caches, or
 temporary uploaded images. AWS integration should use configuration supplied by
 the deployment environment.
-
