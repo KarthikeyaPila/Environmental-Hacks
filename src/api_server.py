@@ -13,7 +13,8 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from .area_opportunities import AreaOpportunityService
-from .image_classifier import classify_with_rekognition
+from .image_classifier import classify_s3_object, classify_with_rekognition
+from .image_storage import create_upload, delete_upload
 from .recovery_domain import Profile, RecoveryService, RequestStatus, Role
 
 
@@ -132,11 +133,22 @@ class DemoHandler(SimpleHTTPRequestHandler):
                 material = service.add_material(payload["userId"], payload["materialType"], float(payload["quantityKg"]))
                 return self._send_json(_material_json(material), 201)
             if path == "/api/classify-image":
+                s3_key = payload.get("s3Key")
+                if s3_key and os.getenv("REKOGNITION_MODEL_ARN"):
+                    result = classify_s3_object(os.getenv("ML_S3_BUCKET", "environmental-recovery-ml-132218943520"), s3_key)
+                    delete_upload(os.getenv("ML_S3_BUCKET", "environmental-recovery-ml-132218943520"), s3_key)
+                    return self._send_json(result)
                 image_base64 = payload.get("imageBase64")
                 if image_base64 and os.getenv("REKOGNITION_MODEL_ARN"):
                     image_bytes = base64.b64decode(image_base64, validate=True)
                     return self._send_json(classify_with_rekognition(image_bytes))
                 return self._send_json(_mock_classification(payload.get("filename", "")))
+            if path == "/api/image-upload":
+                content_type = payload.get("contentType")
+                filename = payload.get("filename", "image")
+                if content_type not in {"image/jpeg", "image/png"}:
+                    raise ValueError("only JPG and PNG images are supported")
+                return self._send_json(create_upload(os.getenv("ML_S3_BUCKET", "environmental-recovery-ml-132218943520"), content_type, filename))
             if path == "/api/collection-requests":
                 household_id = payload["householdId"]
                 active = [r for r in service.requests.values() if r.household_id == household_id and r.status in (RequestStatus.PENDING, RequestStatus.ACCEPTED)]
@@ -181,7 +193,10 @@ class DemoHandler(SimpleHTTPRequestHandler):
         path = urlparse(self.path).path.rstrip("/")
         try:
             if path.startswith("/api/materials/"):
-                service.remove_material("household_1", path.split("/")[-1])
+                material_id = path.split("/")[-1]
+                service.remove_material("household_1", material_id)
+                if repository is not None:
+                    repository.delete_material(material_id)
                 return self._send_json({"ok": True})
             return self._send_json({"error": {"code": "NOT_FOUND", "message": "endpoint not found"}}, 404)
         except ValueError as exc:

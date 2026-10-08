@@ -81,6 +81,9 @@ class DynamoRecoveryRepository:
         item.update(pk=f"BOOKING#{booking.id}", sk="BOOKING", gsi1pk=f"RECYCLER#{booking.recycler_id}", gsi1sk=f"{booking.created_at}#{booking.id}")
         self.table.put_item(Item=item)
 
+    def delete_material(self, material_id: str) -> None:
+        self.table.delete_item(Key={"pk": f"MATERIAL#{material_id}", "sk": "MATERIAL"})
+
     def save_service(self, service) -> None:
         """Batch-save the current domain snapshot; useful during migration/backfill."""
         with self.table.batch_writer(overwrite_by_pkeys=["pk", "sk"]) as batch:
