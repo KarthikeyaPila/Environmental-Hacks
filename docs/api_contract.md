@@ -64,6 +64,23 @@ Request:
 
 Repeated additions of the same material merge into the household aggregate.
 
+### `PUT /api/materials/{materialId}`
+
+Updates the quantity of available household material. Requested or collected
+material cannot be edited.
+
+```json
+{
+  "userId": "household_1",
+  "quantityKg": 3.1
+}
+```
+
+### `DELETE /api/materials/{materialId}`
+
+Removes available household material. Material already attached to a request
+cannot be removed.
+
 ### `GET /api/households/{householdId}/inventory`
 
 Returns aggregate material, estimated value, and active request status.

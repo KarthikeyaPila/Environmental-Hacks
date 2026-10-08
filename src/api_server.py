@@ -123,6 +123,27 @@ class DemoHandler(SimpleHTTPRequestHandler):
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
             self._send_json({"error": {"code": "INVALID_REQUEST", "message": str(exc)}}, 400)
 
+    def do_PUT(self):
+        path = urlparse(self.path).path.rstrip("/")
+        payload = self._body()
+        try:
+            if path.startswith("/api/materials/"):
+                material = service.update_material(payload["userId"], path.split("/")[-1], float(payload["quantityKg"]))
+                return self._send_json(_material_json(material))
+            return self._send_json({"error": {"code": "NOT_FOUND", "message": "endpoint not found"}}, 404)
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            self._send_json({"error": {"code": "INVALID_REQUEST", "message": str(exc)}}, 400)
+
+    def do_DELETE(self):
+        path = urlparse(self.path).path.rstrip("/")
+        try:
+            if path.startswith("/api/materials/"):
+                service.remove_material("household_1", path.split("/")[-1])
+                return self._send_json({"ok": True})
+            return self._send_json({"error": {"code": "NOT_FOUND", "message": "endpoint not found"}}, 404)
+        except ValueError as exc:
+            self._send_json({"error": {"code": "INVALID_REQUEST", "message": str(exc)}}, 400)
+
 
 def _material_json(material) -> dict:
     return {"id": material.id, "materialType": material.material_type, "quantityKg": material.quantity_kg, "estimatedValueInr": round(material.estimated_value), "status": material.status}
