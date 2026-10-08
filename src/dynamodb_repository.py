@@ -1,0 +1,90 @@
+"""DynamoDB persistence adapter for the recovery domain.
+
+The adapter is intentionally separate from the domain service so local demos
+can continue using in-memory state while the API is migrated incrementally.
+"""
+
+from __future__ import annotations
+
+from dataclasses import asdict
+from decimal import Decimal
+from enum import Enum
+from typing import Any
+
+
+def _native(value: Any) -> Any:
+    if isinstance(value, Enum):
+        return value.value
+    if isinstance(value, float):
+        return Decimal(str(value))
+    if isinstance(value, set):
+        return set(value)
+    if isinstance(value, dict):
+        return {key: _native(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_native(item) for item in value]
+    return value
+
+
+class DynamoRecoveryRepository:
+    """Single-table repository using the access patterns in docs/dynamodb_schema.md."""
+
+    def __init__(self, table_name: str = "environmental-recovery", region_name: str = "ap-south-1", resource=None):
+        if resource is None:
+            import boto3
+
+            resource = boto3.resource("dynamodb", region_name=region_name)
+        self.table = resource.Table(table_name)
+
+    def put_profile(self, profile) -> None:
+        item = _native(asdict(profile))
+        item.update(pk=f"PROFILE#{profile.id}", sk="PROFILE", gsi1pk=f"ROLE#{profile.role.value}", gsi1sk=profile.id)
+        self.table.put_item(Item=item)
+
+    def put_material(self, material) -> None:
+        item = _native(asdict(material))
+        item.update(
+            pk=f"MATERIAL#{material.id}", sk="MATERIAL",
+            gsi1pk=f"OWNER#{material.current_holder_id}", gsi1sk=f"{material.status}#{material.id}",
+            gsi2pk=f"MATERIAL#{material.material_type}#{material.status}", gsi2sk=material.id,
+        )
+        self.table.put_item(Item=item)
+
+    def put_request(self, request) -> None:
+        item = _native(asdict(request))
+        item.update(
+            pk=f"REQUEST#{request.id}", sk="REQUEST",
+            gsi1pk=f"HOUSEHOLD#{request.household_id}", gsi1sk=f"{request.created_at}#{request.id}",
+            gsi2pk=f"REQUEST_STATUS#{request.status.value}", gsi2sk=f"{request.created_at}#{request.id}",
+        )
+        self.table.put_item(Item=item)
+
+    def put_requirement(self, requirement) -> None:
+        item = _native(asdict(requirement))
+        item.update(pk=f"REQUIREMENT#{requirement.id}", sk="REQUIREMENT", gsi1pk=f"RECYCLER#{requirement.recycler_id}", gsi1sk=f"{requirement.status.value}#{requirement.id}")
+        self.table.put_item(Item=item)
+
+    def put_booking(self, booking) -> None:
+        item = _native(asdict(booking))
+        item.update(pk=f"BOOKING#{booking.id}", sk="BOOKING", gsi1pk=f"RECYCLER#{booking.recycler_id}", gsi1sk=f"{booking.created_at}#{booking.id}")
+        self.table.put_item(Item=item)
+
+    def save_service(self, service) -> None:
+        """Batch-save the current domain snapshot; useful during migration/backfill."""
+        with self.table.batch_writer(overwrite_by_pkeys=["pk", "sk"]) as batch:
+            for profile in service.profiles.values():
+                item = _native(asdict(profile))
+                item.update(pk=f"PROFILE#{profile.id}", sk="PROFILE", gsi1pk=f"ROLE#{profile.role.value}", gsi1sk=profile.id)
+                batch.put_item(Item=item)
+            for material in service.materials.values():
+                item = _native(asdict(material))
+                item.update(pk=f"MATERIAL#{material.id}", sk="MATERIAL", gsi1pk=f"OWNER#{material.current_holder_id}", gsi1sk=f"{material.status}#{material.id}", gsi2pk=f"MATERIAL#{material.material_type}#{material.status}", gsi2sk=material.id)
+                batch.put_item(Item=item)
+            for request in service.requests.values():
+                item = _native(asdict(request))
+                item.update(pk=f"REQUEST#{request.id}", sk="REQUEST", gsi1pk=f"HOUSEHOLD#{request.household_id}", gsi1sk=f"{request.created_at}#{request.id}", gsi2pk=f"REQUEST_STATUS#{request.status.value}", gsi2sk=f"{request.created_at}#{request.id}")
+                batch.put_item(Item=item)
+            for requirement in service.requirements.values():
+                self.put_requirement(requirement)
+            for booking in service.bookings.values():
+                self.put_booking(booking)
