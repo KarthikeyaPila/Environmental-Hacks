@@ -83,6 +83,13 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(status, 400)
         self.assertIn("active collection request", error["error"]["message"])
 
+    def test_http_mock_image_classification_is_deterministic(self):
+        status, result = self.call("POST", "/api/classify-image", {"filename": "plastic-bottle.jpg"})
+        self.assertEqual(status, 200)
+        self.assertEqual(result["mode"], "mock")
+        self.assertEqual(result["detections"][0]["materialType"], "pet")
+        self.assertFalse(result["detections"][0]["requiresConfirmation"])
+
     def test_http_exposes_booking_history(self):
         _, request = self.call("POST", "/api/collection-requests", {"householdId": "household_1"})
         self.call("POST", f"/api/collection-requests/{request['id']}/accept", {"kabadiwalaId": "kabadiwala_1"})

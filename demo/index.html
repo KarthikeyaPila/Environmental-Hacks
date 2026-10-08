@@ -63,6 +63,13 @@
           <div><label for="quantityKg">Estimated weight (kg)</label><input id="quantityKg" type="number" min="0.1" step="0.1" value="1" /></div>
           <button id="addMaterial">Add material</button>
         </div>
+        <div class="card">
+          <strong>Optional image assistant</strong>
+          <p class="muted">Mock mode for now. The result must be confirmed before saving.</p>
+          <input id="imageInput" type="file" accept="image/png,image/jpeg" />
+          <button id="classifyImage" class="secondary">Identify material</button>
+          <div id="classificationResult"></div>
+        </div>
         <div class="actions"><button id="householdInventory">Refresh inventory</button><button id="createRequest">Create collection request</button></div>
         <div id="householdOutput" class="grid"></div>
       </section>
@@ -108,6 +115,7 @@
       async function bookMaterial(kabadiwalaId, availableQuantity) { try { const booking = await post('/api/bookings', { recyclerId: 'recycler_1', requirementId, kabadiwalaId, quantityKg: Math.min(availableQuantity, Number($('#requiredQuantity').value)) }); log(booking); const confirmed = await post(`/api/bookings/${booking.id}/confirm`, { recyclerId: 'recycler_1' }); log(confirmed); await loadAvailable(); } catch (error) { log(error.message, true); } }
       $('#householdInventory').addEventListener('click', loadHousehold);
       $('#addMaterial').addEventListener('click', async () => { try { const material = await post('/api/materials', { userId: 'household_1', materialType: $('#materialType').value, quantityKg: Number($('#quantityKg').value) }); log(material); await loadHousehold(); } catch (error) { log(error.message, true); } });
+      $('#classifyImage').addEventListener('click', async () => { try { const file = $('#imageInput').files[0]; if (!file) throw new Error('Choose an image first'); const result = await post('/api/classify-image', { filename: file.name }); const detection = result.detections[0]; $('#classificationResult').innerHTML = `<p>Detected <strong>${detection.materialType}</strong> · ${Math.round(detection.confidence * 100)}% confidence</p><button id="confirmClassification">Confirm material</button>`; $('#confirmClassification').addEventListener('click', async () => { try { const material = await post('/api/materials', { userId: 'household_1', materialType: detection.materialType === 'other' ? 'paper' : detection.materialType, quantityKg: Number($('#quantityKg').value) }); log(material); await loadHousehold(); } catch (error) { log(error.message, true); } }); log(result); } catch (error) { log(error.message, true); } });
       $('#createRequest').addEventListener('click', async () => { try { log(await post('/api/collection-requests', { householdId: 'household_1' })); await loadHousehold(); } catch (error) { log(error.message, true); } });
       $('#createRequirement').addEventListener('click', async () => { try { const requirement = await post('/api/recycler-requirements', { recyclerId: 'recycler_1', materialType: 'pet', requiredQuantityKg: Number($('#requiredQuantity').value) }); requirementId = requirement.id; log(requirement); await loadAvailable(); } catch (error) { log(error.message, true); } });
       $('#availableMaterial').addEventListener('click', loadAvailable);

@@ -213,3 +213,32 @@ not user-generated reputation scores.
 
 Metrics are derived only from stored records. No unsupported carbon or
 tree-equivalent claims are returned.
+
+## Image classification
+
+### `POST /api/classify-image`
+
+The local implementation uses deterministic mock classification. The future AWS
+implementation will replace the internal classifier with Rekognition Custom
+Labels while keeping this response shape.
+
+```json
+{
+  "filename": "plastic-bottle.jpg"
+}
+```
+
+Response:
+
+```json
+{
+  "detections": [
+    {
+      "materialType": "pet",
+      "confidence": 0.92,
+      "requiresConfirmation": false
+    }
+  ],
+  "mode": "mock"
+}
+```

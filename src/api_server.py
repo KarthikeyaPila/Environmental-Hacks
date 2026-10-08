@@ -115,6 +115,8 @@ class DemoHandler(SimpleHTTPRequestHandler):
             if path == "/api/materials":
                 material = service.add_material(payload["userId"], payload["materialType"], float(payload["quantityKg"]))
                 return self._send_json(_material_json(material), 201)
+            if path == "/api/classify-image":
+                return self._send_json(_mock_classification(payload.get("filename", "")))
             if path == "/api/collection-requests":
                 household_id = payload["householdId"]
                 active = [r for r in service.requests.values() if r.household_id == household_id and r.status in (RequestStatus.PENDING, RequestStatus.ACCEPTED)]
@@ -166,6 +168,14 @@ class DemoHandler(SimpleHTTPRequestHandler):
 
 def _material_json(material) -> dict:
     return {"id": material.id, "materialType": material.material_type, "quantityKg": material.quantity_kg, "estimatedValueInr": round(material.estimated_value), "status": material.status}
+
+
+def _mock_classification(filename: str) -> dict:
+    """Deterministic local stand-in for Rekognition Custom Labels."""
+    name = filename.lower()
+    guesses = [("cardboard", 0.91), ("paper", 0.88), ("aluminium", 0.9), ("glass", 0.86), ("pet", 0.92)]
+    material, confidence = next(((label, score) for label, score in guesses if label in name or (label == "pet" and "plastic" in name)), ("other", 0.42))
+    return {"detections": [{"materialType": material, "confidence": confidence, "requiresConfirmation": confidence < 0.8 or material == "other"}], "mode": "mock"}
 
 
 def _request_json(request) -> dict:
