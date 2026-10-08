@@ -12,7 +12,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from .area_opportunities import AreaOpportunityService
-from .recovery_domain import Profile, RecoveryService, Role
+from .recovery_domain import Profile, RecoveryService, RequestStatus, Role
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -72,8 +72,15 @@ class DemoHandler(SimpleHTTPRequestHandler):
                 return self._send_json({"opportunities": area_service.opportunities(area_id, service.requests.values())})
             if path == "/api/kabadiwalas/kabadiwala_1/inventory":
                 return self._send_json({"inventory": _inventory("kabadiwala_1")})
+            if path == "/api/households/household_1/inventory":
+                return self._send_json({"inventory": _household_inventory("household_1")})
+            if path == "/api/households/household_1/collection-request":
+                request = next((r for r in service.requests.values() if r.household_id == "household_1"), None)
+                return self._send_json({"request": _request_json(request) if request else None})
             if path == "/api/recyclers/recycler_1/available-material":
                 return self._send_json({"availableMaterial": service.available_material("recycler_1")})
+            if path == "/api/recyclers/recycler_1/requirements":
+                return self._send_json({"requirements": [_requirement_json(r) for r in service.requirements.values() if r.recycler_id == "recycler_1"]})
             return super().do_GET()
         except ValueError as exc:
             self._send_json({"error": {"code": "NOT_FOUND", "message": str(exc)}}, 404)
@@ -89,12 +96,29 @@ class DemoHandler(SimpleHTTPRequestHandler):
             if path == "/api/materials":
                 material = service.add_material(payload["userId"], payload["materialType"], float(payload["quantityKg"]))
                 return self._send_json(_material_json(material), 201)
+            if path == "/api/collection-requests":
+                household_id = payload["householdId"]
+                active = [r for r in service.requests.values() if r.household_id == household_id and r.status in (RequestStatus.PENDING, RequestStatus.ACCEPTED)]
+                if active:
+                    raise ValueError("household already has an active collection request")
+                material_ids = [m.id for m in service.materials.values() if m.source_id == household_id and m.status == "available"]
+                request = service.create_collection_request(household_id, material_ids)
+                return self._send_json(_request_json(request), 201)
             if path.startswith("/api/collection-requests/") and path.endswith("/accept"):
                 request = service.accept_request(payload["kabadiwalaId"], path.split("/")[-2])
                 return self._send_json(_request_json(request))
             if path.startswith("/api/collection-requests/") and path.endswith("/collect"):
                 request = service.collect_request(payload["kabadiwalaId"], path.split("/")[-2])
                 return self._send_json(_request_json(request))
+            if path == "/api/recycler-requirements":
+                requirement = service.create_requirement(payload["recyclerId"], payload["materialType"], float(payload["requiredQuantityKg"]))
+                return self._send_json(_requirement_json(requirement), 201)
+            if path == "/api/bookings":
+                booking = service.book_material(payload["recyclerId"], payload["requirementId"], payload["kabadiwalaId"], float(payload["quantityKg"]))
+                return self._send_json(_booking_json(booking), 201)
+            if path.startswith("/api/bookings/") and path.endswith("/confirm"):
+                booking = service.confirm_booking(payload["recyclerId"], path.split("/")[-2])
+                return self._send_json(_booking_json(booking))
             return self._send_json({"error": {"code": "NOT_FOUND", "message": "endpoint not found"}}, 404)
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
             self._send_json({"error": {"code": "INVALID_REQUEST", "message": str(exc)}}, 400)
@@ -105,7 +129,17 @@ def _material_json(material) -> dict:
 
 
 def _request_json(request) -> dict:
+    if request is None:
+        return None
     return {"id": request.id, "status": request.status.value, "estimatedValueInr": round(request.estimated_value), "quantityByType": request.quantity_by_type, "assignedKabadiwalaId": request.assigned_kabadiwala_id}
+
+
+def _requirement_json(requirement) -> dict:
+    return {"id": requirement.id, "materialType": requirement.material_type, "requiredQuantityKg": requirement.required_quantity_kg, "fulfilledQuantityKg": requirement.fulfilled_quantity_kg, "status": requirement.status.value}
+
+
+def _booking_json(booking) -> dict:
+    return {"id": booking.id, "status": booking.status.value, "materialType": booking.material_type, "quantityKg": booking.quantity_kg, "materialIds": booking.material_ids, "requirementId": booking.requirement_id}
 
 
 def _inventory(holder_id: str) -> list[dict]:
@@ -114,6 +148,16 @@ def _inventory(holder_id: str) -> list[dict]:
         if material.current_holder_id == holder_id and material.status == "collected":
             grouped[material.material_type] = grouped.get(material.material_type, 0) + material.quantity_kg
     return [{"materialType": material_type, "quantityKg": round(quantity, 3)} for material_type, quantity in grouped.items()]
+
+
+def _household_inventory(household_id: str) -> list[dict]:
+    grouped = {}
+    for material in service.materials.values():
+        if material.source_id == household_id and material.status in {"available", "requested"}:
+            grouped.setdefault(material.material_type, {"quantityKg": 0, "estimatedValueInr": 0})
+            grouped[material.material_type]["quantityKg"] += material.quantity_kg
+            grouped[material.material_type]["estimatedValueInr"] += material.estimated_value
+    return [{"materialType": t, "quantityKg": round(v["quantityKg"], 3), "estimatedValueInr": round(v["estimatedValueInr"])} for t, v in grouped.items()]
 
 
 if __name__ == "__main__":
