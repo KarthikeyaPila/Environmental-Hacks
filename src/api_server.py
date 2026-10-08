@@ -27,8 +27,8 @@ def build_state() -> tuple[RecoveryService, AreaOpportunityService]:
     first = service.add_material("household_1", "pet", 4)
     service.add_material("household_1", "cardboard", 2)
     second = service.add_material("household_2", "aluminium", 1.5)
-    service.create_collection_request("household_1", [first.id, next(m.id for m in service.materials.values() if m.source_id == "household_1" and m.material_type == "cardboard")])
-    service.create_collection_request("household_2", [second.id])
+    # The demo starts with material available at households, but no request yet.
+    # This lets the presenter create the request live from the household role.
     return service, AreaOpportunityService()
 
 
