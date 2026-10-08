@@ -4,6 +4,33 @@ This document is the shared frontend reference for the Environmental Recovery
 Platform. The frontend should consume the backend API rather than recreate
 business rules locally.
 
+## How to use this document
+
+This is the authoritative frontend handoff for Lovable or any frontend
+developer. Read this document first, then use `docs/api_contract.md` for exact
+request and response schemas. Do not invent endpoints, fields, workflow rules,
+pricing, or status transitions.
+
+## Development setup
+
+Run the backend from the repository root:
+
+```bash
+./scripts/run_demo.sh
+```
+
+The demo is available at `http://localhost:8080`. The API base path is `/api`.
+The frontend may use a configurable `VITE_API_BASE_URL` or equivalent, with an
+empty value for same-origin local development.
+
+The backend supports two modes:
+
+- Local mode: in-memory state and deterministic mock image classification.
+- AWS mode: DynamoDB persistence, private S3 uploads, and Rekognition Custom
+  Labels image classification.
+
+The frontend must work in both modes and must not assume AWS is available.
+
 ## Product story
 
 The application connects:
@@ -109,6 +136,12 @@ confirmation. The UI should make `reserved` visibly different from
 - Authentication: omitted for MVP; send demo `userId` where required
 - MVP responses are small seeded result sets; pagination is not required
 
+Use `docs/api_contract.md` as the exact source for every endpoint. Common error
+codes include `INVALID_REQUEST`, `NOT_FOUND`, and `AWS_SERVICE_ERROR`. Display
+the returned human-readable message for development, but use friendly UI copy
+in the final product. HTTP 503 from image classification means the AWS model is
+starting, stopped, or temporarily unavailable; show a retry action.
+
 Full endpoint details and payload examples live in `docs/api_contract.md`.
 
 For image assistance, use this sequence:
@@ -119,6 +152,24 @@ POST /api/image-upload → PUT uploadUrl → POST /api/classify-image → confir
 
 The backend deletes the temporary S3 object after classification. If direct S3
 upload is blocked in local development, the demo has an API fallback.
+
+The preferred request sequence is:
+
+```text
+POST /api/image-upload
+  → PUT the file to uploadUrl with Content-Type and x-amz-server-side-encryption: AES256
+  → POST /api/classify-image with s3Key
+  → display prediction and confidence
+  → wait for user confirmation
+  → POST /api/materials if confirmed
+```
+
+Only allow JPG and PNG files, enforce a 5 MB client-side limit, show upload and
+classification progress, and handle failed uploads. The backend deletes the
+temporary S3 object after AWS classification. Never put AWS credentials in the
+frontend. The current model recognizes one dominant item per image, so guide
+users to photograph one material at a time. Mixed-material photos should show
+that limitation rather than silently producing an incomplete result.
 
 ## Kabadiwala map and route experience
 
@@ -137,6 +188,71 @@ The current response uses `mode: local-preview` and deterministic nearest-
 neighbour ordering. Keep the UI independent of this mode because the same
 contract will later return an Amazon Location road-aware route. Use
 `optimizeFor: distance` for the demo; a future option can support `time`.
+
+### Map implementation details
+
+The backend already provides 14 approximate Delhi locality centers. The map
+should initially render those centers and their opportunity summaries. When a
+locality is selected, zoom to its `center` and request its opportunities.
+
+Each opportunity may be represented by an approximate marker containing only:
+
+- Request ID
+- Approximate latitude and longitude
+- Material breakdown
+- Estimated kilograms
+- Estimated rupee value
+- Request status
+
+Do not show household names, phone numbers, exact addresses, or exact home
+locations. Marker positions are for operational visualization, not navigation
+to a resident's home.
+
+For route planning, send selected request IDs to:
+
+```text
+POST /api/kabadiwalas/kabadiwala_1/route
+```
+
+The response includes `mode`, ordered `stops`, `route`, `totalDistanceKm`, and
+`estimatedDurationMinutes`. Draw `route` as a polyline and label each stop with
+`stopNumber`. The current backend uses `mode: local-preview`; keep the map
+component replaceable because Amazon Location Routes can later provide
+road-aware `OptimizeWaypoints` results without changing the UI contract.
+
+Amazon Location Maps/MapLibre is the intended map direction. Do not add live
+tracking, geofences, route optimization UI, or exact household navigation to
+the MVP.
+
+## Suggested frontend structure
+
+Use components or modules equivalent to:
+
+```text
+src/
+├── api/                 # typed API client and request helpers
+├── components/          # reusable cards, status badges, dialogs, map
+├── pages/               # Household, Kabadiwala, Recycler views
+├── state/               # selected role, selected area, request/route state
+└── types/               # API response/request types
+```
+
+Keep API calls in one client layer. Keep material/status constants in one place,
+but do not duplicate domain transitions. Use optimistic UI only where failure
+rollback is implemented; normal API refreshes are safer for this demo.
+
+## Acceptance checklist
+
+- Household can add, edit, remove, and submit materials.
+- Household can confirm or correct image predictions.
+- Kabadiwala can select a locality and see approximate opportunity markers.
+- Kabadiwala can select stops and see an ordered route preview.
+- Kabadiwala can accept and collect requests.
+- Recycler can create requirements, book supply, and confirm transfers.
+- All views show loading, empty, error, and success states.
+- Refreshing data does not duplicate cards or requests.
+- No exact household location or private AWS credential reaches the UI.
+- The interface works with both local mock mode and AWS-backed mode.
 
 Important endpoints include:
 
