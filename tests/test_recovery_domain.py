@@ -28,6 +28,8 @@ class RecoveryDomainTests(unittest.TestCase):
     booking = service.book_material("rec_1", requirement.id, "kab_1", 3)
 
     self.assertEqual(booking.quantity_kg, 3)
+    self.assertEqual(service.requirements[requirement.id].fulfilled_quantity_kg, 0)
+    service.confirm_booking("rec_1", booking.id)
     self.assertEqual(service.requirements[requirement.id].status, RequirementStatus.PARTIALLY_FULFILLED)
     self.assertEqual(service.contribution("home_1")["material_kg"], 6)
 

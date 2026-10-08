@@ -114,6 +114,7 @@ class Booking:
     requirement_id: str
     material_type: str
     quantity_kg: float
+    material_ids: list[str] = field(default_factory=list)
     status: BookingStatus = BookingStatus.CONFIRMED
     created_at: str = field(default_factory=now)
     updated_at: str = field(default_factory=now)
@@ -238,13 +239,43 @@ class RecoveryService:
         requirement = self.requirements.get(requirement_id)
         if not requirement or requirement.recycler_id != recycler_id:
             raise ValueError("requirement not found for recycler")
-        available = sum(m.quantity_kg for m in self.materials.values() if m.current_holder_id == kabadiwala_id and m.material_type == requirement.material_type and m.status == "collected")
+        available_records = [m for m in self.materials.values() if m.current_holder_id == kabadiwala_id and m.material_type == requirement.material_type and m.status == "collected"]
+        available = sum(m.quantity_kg for m in available_records)
         remaining = requirement.required_quantity_kg - requirement.fulfilled_quantity_kg
         if quantity_kg > min(available, remaining):
             raise ValueError("requested booking exceeds available or required quantity")
-        booking = Booking(new_id("book"), recycler_id, kabadiwala_id, requirement_id, requirement.material_type, quantity_kg)
+        selected_ids = []
+        remaining_to_reserve = quantity_kg
+        for material in available_records:
+            if remaining_to_reserve <= 0:
+                break
+            material.status = "reserved"
+            material.updated_at = now()
+            selected_ids.append(material.id)
+            remaining_to_reserve -= material.quantity_kg
+        booking = Booking(new_id("book"), recycler_id, kabadiwala_id, requirement_id, requirement.material_type, quantity_kg, selected_ids)
         self.bookings[booking.id] = booking
-        requirement.fulfilled_quantity_kg += quantity_kg
+        return booking
+
+    def confirm_booking(self, recycler_id: str, booking_id: str) -> Booking:
+        self._require_role(recycler_id, Role.RECYCLER)
+        booking = self.bookings.get(booking_id)
+        if not booking or booking.recycler_id != recycler_id:
+            raise ValueError("booking not found for recycler")
+        if booking.status != BookingStatus.CONFIRMED:
+            raise ValueError("only confirmed bookings can be completed")
+        requirement = self.requirements[booking.requirement_id]
+        for material_id in booking.material_ids:
+            material = self._get_material(material_id)
+            if material.status != "reserved" or material.current_holder_id != booking.kabadiwala_id:
+                raise ValueError("reserved material is no longer available")
+            material.current_holder_id = recycler_id
+            material.destination_id = recycler_id
+            material.status = "transferred"
+            material.updated_at = now()
+        booking.status = BookingStatus.COMPLETED
+        booking.updated_at = now()
+        requirement.fulfilled_quantity_kg += booking.quantity_kg
         requirement.status = RequirementStatus.FULFILLED if requirement.fulfilled_quantity_kg >= requirement.required_quantity_kg else RequirementStatus.PARTIALLY_FULFILLED
         requirement.updated_at = now()
         return booking
@@ -252,7 +283,7 @@ class RecoveryService:
     def contribution(self, household_id: str) -> dict:
         self._require_role(household_id, Role.HOUSEHOLD)
         records = [m for m in self.materials.values() if m.source_id == household_id]
-        collected = [m for m in records if m.status == "collected"]
+        collected = [m for m in records if m.status in {"collected", "reserved", "transferred"}]
         by_type: dict[str, float] = {}
         for material in collected:
             by_type[material.material_type] = by_type.get(material.material_type, 0) + material.quantity_kg
