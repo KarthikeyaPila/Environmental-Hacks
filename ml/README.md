@@ -64,6 +64,19 @@ Target at least 50–100 usable images per class for the first useful prototype,
 with a separate test set. If time is limited, use fewer images but report the
 model as a proof of concept rather than a general waste detector.
 
+## Preparing local data
+
+After downloading a dataset such as TrashNet outside Git, run:
+
+```bash
+python3 scripts/prepare_dataset.py /path/to/trashnet/data/dataset-resized
+```
+
+The script maps `plastic` to `pet` and `metal` to `aluminium`, skips unmapped
+classes such as `trash`, and creates deterministic `ml/data/training/` and
+`ml/data/testing/` folders. Add curated and TACO images only after reviewing
+their labels and licenses.
+
 ## Model behavior
 
 The backend should normalize inference to:
