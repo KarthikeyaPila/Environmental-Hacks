@@ -6,4 +6,5 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 echo "Starting the recovery demo at http://localhost:${PORT}"
 echo "Press Ctrl+C to stop."
-python3 -m http.server "$PORT" --directory "$ROOT_DIR/demo"
+cd "$ROOT_DIR"
+python3 -m src.api_server

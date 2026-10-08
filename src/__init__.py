@@ -1,0 +1,1 @@
+"""Recovery platform backend package."""
