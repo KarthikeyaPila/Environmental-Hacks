@@ -41,6 +41,10 @@ LABEL_IDS = {label: index + 1 for index, label in enumerate(("pet", "cardboard",
 
 
 def prepare_taco(annotation_file: Path, image_root: Path, output: Path, test_ratio: float = 0.2) -> dict:
+    if not annotation_file.is_file():
+        raise ValueError(f"TACO annotation file not found: {annotation_file}\nDownload/clone TACO first, then pass the real path to data/annotations.json.")
+    if not image_root.is_dir():
+        raise ValueError(f"TACO image directory not found: {image_root}\nPass the real TACO data directory containing batch_* folders.")
     data = json.loads(annotation_file.read_text())
     categories = {category["id"]: category["name"] for category in data["categories"]}
     mapped_categories = {category_id: CATEGORY_MAP[name] for category_id, name in categories.items() if name in CATEGORY_MAP}

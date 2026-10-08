@@ -7,6 +7,10 @@ from scripts.prepare_taco_dataset import prepare_taco
 
 
 class TacoPreparationTests(unittest.TestCase):
+    def test_missing_paths_have_actionable_error(self):
+        with self.assertRaisesRegex(ValueError, "TACO annotation file not found"):
+            prepare_taco(Path("/does/not/exist/annotations.json"), Path("/does/not/exist"), Path("/tmp/output"))
+
     def test_maps_relevant_categories_and_preserves_boxes(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

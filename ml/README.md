@@ -89,9 +89,13 @@ training and testing data.
 For TACO, retain the COCO bounding-box annotations and use:
 
 ```bash
+# Find a downloaded TACO checkout first:
+find /tmp -path '*/taco-dataset.*/data/annotations.json' -print
+
+# Replace both placeholder paths with the real paths returned above:
 python3 scripts/prepare_taco_dataset.py \
-  /path/to/TACO/data/annotations.json \
-  /path/to/TACO/data \
+  /real/path/to/TACO/data/annotations.json \
+  /real/path/to/TACO/data \
   --output /tmp/taco-prepared
 ```
 
