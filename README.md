@@ -24,8 +24,9 @@ The domain service models the flow:
 
 `Household → collection request → kabadiwala collection → inventory → recycler booking`
 
-It currently runs in memory so the workflow can be tested before connecting
-Lambda, API Gateway, and DynamoDB.
+It supports dependency-free in-memory mode for local tests and an opt-in AWS
+mode using DynamoDB persistence, private S3 image uploads, and Rekognition
+Custom Labels.
 
 ## Development
 
@@ -35,6 +36,14 @@ root:
 ```bash
 python3 -m unittest discover -s tests -v
 python3 -m py_compile src/recovery_domain.py
+```
+
+For AWS-backed local development:
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+cp .env.example .env
 ```
 
 Run the temporary demo website:

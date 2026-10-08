@@ -218,15 +218,31 @@ tree-equivalent claims are returned.
 
 ### `POST /api/classify-image`
 
-The local implementation uses deterministic mock classification. The future AWS
-implementation will replace the internal classifier with Rekognition Custom
-Labels while keeping this response shape.
+For AWS mode, upload the image first with `POST /api/image-upload`, then send
+the returned `key`. The legacy `filename` input remains available for local
+mock mode, and `imageBase64` remains a compatibility fallback.
+
+### `POST /api/image-upload`
+
+Request: `{ "filename": "bottle.jpg", "contentType": "image/jpeg" }`
+
+Response: `{ "uploadUrl": "https://...", "key": "demo-uploads/<id>.jpg", "expiresIn": 600 }`
+
+The frontend must `PUT` the file to `uploadUrl` with the same `Content-Type`
+and `x-amz-server-side-encryption: AES256` headers, then call
+`POST /api/classify-image` with `{ "s3Key": "..." }`. The backend deletes the
+temporary S3 object after AWS classification.
 
 ```json
 {
-  "filename": "plastic-bottle.jpg"
+  "s3Key": "demo-uploads/<opaque-id>.jpg"
 }
 ```
+
+The current model is single-item image classification. Ask users to upload one
+dominant material per image. Mixed-material scenes require a future multi-label
+or object-detection model. If the model is starting or stopped, the API returns
+HTTP `503` with error code `AWS_SERVICE_ERROR`; show a retry message.
 
 Response:
 

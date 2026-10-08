@@ -36,7 +36,9 @@ The household should be able to:
 
 Supported materials: `pet`, `cardboard`, `paper`, `aluminium`, `glass`, and
 `wood`. Unknown material should remain a manual/discard decision. Image
-classification is optional and must always allow confirmation/correction.
+classification is optional and must always allow confirmation/correction. The
+current AWS model expects one dominant material per image; guide users toward
+single-item photos and show a retry state while the model is starting.
 
 ### Kabadiwala view
 
@@ -109,6 +111,15 @@ confirmation. The UI should make `reserved` visibly different from
 
 Full endpoint details and payload examples live in `docs/api_contract.md`.
 
+For image assistance, use this sequence:
+
+```text
+POST /api/image-upload → PUT uploadUrl → POST /api/classify-image → confirm
+```
+
+The backend deletes the temporary S3 object after classification. If direct S3
+upload is blocked in local development, the demo has an API fallback.
+
 Important endpoints include:
 
 ```text
@@ -151,3 +162,15 @@ The three-minute story should show one complete material journey:
 Keep the interface clear and functional. Avoid heavy gamification, unsupported
 carbon conversions, fake AI behavior, route optimization, payments, and
 authentication.
+
+## Runtime configuration
+
+The backend can run in mock/in-memory mode or AWS-backed mode. The frontend
+should display a retry state for HTTP 503 responses from image classification.
+
+```text
+DYNAMODB_ENABLED=true
+AWS_REGION=ap-south-1
+ML_S3_BUCKET=environmental-recovery-ml-132218943520
+REKOGNITION_MODEL_ARN=<configured by runtime>
+```
