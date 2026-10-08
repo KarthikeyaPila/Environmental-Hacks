@@ -146,7 +146,32 @@ class RecoveryService:
             source_id=household_id, current_holder_id=household_id,
         )
         self.materials[record.id] = record
+        pending = next((r for r in self.requests.values() if r.household_id == household_id and r.status == RequestStatus.PENDING), None)
+        if pending:
+            record.status = "requested"
+            pending.material_ids.append(record.id)
+            pending.quantity_by_type[material_type] = pending.quantity_by_type.get(material_type, 0) + quantity_kg
+            pending.estimated_value += record.estimated_value
+            pending.updated_at = now()
         return record
+
+    def update_material(self, household_id: str, material_id: str, quantity_kg: float) -> MaterialRecord:
+        self._require_role(household_id, Role.HOUSEHOLD)
+        record = self._get_material(material_id)
+        if record.source_id != household_id or record.status != "available":
+            raise ValueError("only available household material can be edited")
+        self._positive(quantity_kg, "quantity_kg")
+        record.quantity_kg = quantity_kg
+        record.estimated_value = round(quantity_kg * self.rates.get(record.material_type, 0.0), 2)
+        record.updated_at = now()
+        return record
+
+    def remove_material(self, household_id: str, material_id: str) -> None:
+        self._require_role(household_id, Role.HOUSEHOLD)
+        record = self._get_material(material_id)
+        if record.source_id != household_id or record.status != "available":
+            raise ValueError("only available household material can be removed")
+        del self.materials[material_id]
 
     def create_collection_request(self, household_id: str, material_ids: list[str]) -> CollectionRequest:
         household = self._require_role(household_id, Role.HOUSEHOLD)
