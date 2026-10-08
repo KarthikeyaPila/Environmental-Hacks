@@ -30,7 +30,7 @@ def _native(value: Any) -> Any:
     if isinstance(value, float):
         return Decimal(str(value))
     if isinstance(value, set):
-        return set(value)
+        return sorted(value)
     if isinstance(value, dict):
         return {key: _native(item) for key, item in value.items()}
     if isinstance(value, list):
