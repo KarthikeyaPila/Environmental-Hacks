@@ -76,6 +76,25 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(status, 400)
         self.assertEqual(error["error"]["code"], "INVALID_REQUEST")
 
+    def test_http_prevents_duplicate_active_request(self):
+        status, _ = self.call("POST", "/api/collection-requests", {"householdId": "household_1"})
+        self.assertEqual(status, 201)
+        status, error = self.call("POST", "/api/collection-requests", {"householdId": "household_1"})
+        self.assertEqual(status, 400)
+        self.assertIn("active collection request", error["error"]["message"])
+
+    def test_http_exposes_booking_history(self):
+        _, request = self.call("POST", "/api/collection-requests", {"householdId": "household_1"})
+        self.call("POST", f"/api/collection-requests/{request['id']}/accept", {"kabadiwalaId": "kabadiwala_1"})
+        self.call("POST", f"/api/collection-requests/{request['id']}/collect", {"kabadiwalaId": "kabadiwala_1"})
+        _, requirement = self.call("POST", "/api/recycler-requirements", {"recyclerId": "recycler_1", "materialType": "pet", "requiredQuantityKg": 1})
+        _, available = self.call("GET", "/api/recyclers/recycler_1/available-material")
+        pet = next(item for item in available["availableMaterial"] if item["materialType"] == "pet")
+        self.call("POST", "/api/bookings", {"recyclerId": "recycler_1", "requirementId": requirement["id"], "kabadiwalaId": pet["kabadiwalaId"], "quantityKg": 1})
+        status, bookings = self.call("GET", "/api/recyclers/recycler_1/bookings")
+        self.assertEqual(status, 200)
+        self.assertEqual(len(bookings["bookings"]), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

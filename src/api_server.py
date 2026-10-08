@@ -78,6 +78,9 @@ class DemoHandler(SimpleHTTPRequestHandler):
                 return self._send_json({"opportunities": area_service.opportunities(area_id, service.requests.values())})
             if path == "/api/kabadiwalas/kabadiwala_1/inventory":
                 return self._send_json({"inventory": _inventory("kabadiwala_1")})
+            if path == "/api/kabadiwalas/kabadiwala_1/requests":
+                requests = [r for r in service.requests.values() if r.assigned_kabadiwala_id == "kabadiwala_1"]
+                return self._send_json({"requests": [_request_json(r) for r in requests]})
             if path == "/api/households/household_1/inventory":
                 return self._send_json({"inventory": _household_inventory("household_1")})
             if path == "/api/households/household_1/collection-request":
@@ -87,6 +90,8 @@ class DemoHandler(SimpleHTTPRequestHandler):
                 return self._send_json({"availableMaterial": [_available_json(item) for item in service.available_material("recycler_1")]})
             if path == "/api/recyclers/recycler_1/requirements":
                 return self._send_json({"requirements": [_requirement_json(r) for r in service.requirements.values() if r.recycler_id == "recycler_1"]})
+            if path == "/api/recyclers/recycler_1/bookings":
+                return self._send_json({"bookings": [_booking_json(b) for b in service.bookings.values() if b.recycler_id == "recycler_1"]})
             if path == "/api/households/household_1/metrics":
                 return self._send_json(service.household_metrics("household_1"))
             if path == "/api/kabadiwalas/kabadiwala_1/metrics":

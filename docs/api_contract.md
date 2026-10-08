@@ -147,6 +147,10 @@ Transitions an accepted request to `collected` and updates aggregate inventory.
 
 Returns collected material grouped by type with estimated value.
 
+### `GET /api/kabadiwalas/{kabadiwalaId}/requests`
+
+Returns requests assigned to the kabadiwala, including their current status.
+
 ## Recycler endpoints
 
 ### `POST /api/recycler-requirements`
@@ -166,6 +170,11 @@ Each material type has one active requirement per recycler for the MVP.
 
 Returns all kabadiwala inventory grouped by kabadiwala and material type, with
 matching requirements highlighted.
+
+### `GET /api/recyclers/{recyclerId}/bookings`
+
+Returns the recycler's booking history, including `confirmed` and `completed`
+bookings.
 
 ### `POST /api/bookings`
 
