@@ -1,4 +1,5 @@
 import json
+import base64
 import threading
 import unittest
 from http.client import HTTPConnection
@@ -89,6 +90,26 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(result["mode"], "mock")
         self.assertEqual(result["detections"][0]["materialType"], "pet")
         self.assertFalse(result["detections"][0]["requiresConfirmation"])
+
+    def test_http_image_classification_uses_aws_when_configured(self):
+        original_arn = api_server.os.environ.get("REKOGNITION_MODEL_ARN")
+        original_classifier = api_server.classify_with_rekognition
+        api_server.os.environ["REKOGNITION_MODEL_ARN"] = "arn:model"
+        api_server.classify_with_rekognition = lambda image: {
+            "detections": [{"materialType": "glass", "confidence": 0.95, "requiresConfirmation": False}],
+            "mode": "aws",
+        }
+        try:
+            status, result = self.call("POST", "/api/classify-image", {"imageBase64": base64.b64encode(b"image").decode()})
+        finally:
+            api_server.classify_with_rekognition = original_classifier
+            if original_arn is None:
+                api_server.os.environ.pop("REKOGNITION_MODEL_ARN", None)
+            else:
+                api_server.os.environ["REKOGNITION_MODEL_ARN"] = original_arn
+        self.assertEqual(status, 200)
+        self.assertEqual(result["mode"], "aws")
+        self.assertEqual(result["detections"][0]["materialType"], "glass")
 
     def test_http_exposes_booking_history(self):
         _, request = self.call("POST", "/api/collection-requests", {"householdId": "household_1"})

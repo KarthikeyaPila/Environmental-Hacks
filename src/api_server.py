@@ -7,11 +7,13 @@ from __future__ import annotations
 
 import json
 import os
+import base64
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
 from .area_opportunities import AreaOpportunityService
+from .image_classifier import classify_with_rekognition
 from .recovery_domain import Profile, RecoveryService, RequestStatus, Role
 
 
@@ -116,6 +118,10 @@ class DemoHandler(SimpleHTTPRequestHandler):
                 material = service.add_material(payload["userId"], payload["materialType"], float(payload["quantityKg"]))
                 return self._send_json(_material_json(material), 201)
             if path == "/api/classify-image":
+                image_base64 = payload.get("imageBase64")
+                if image_base64 and os.getenv("REKOGNITION_MODEL_ARN"):
+                    image_bytes = base64.b64decode(image_base64, validate=True)
+                    return self._send_json(classify_with_rekognition(image_bytes))
                 return self._send_json(_mock_classification(payload.get("filename", "")))
             if path == "/api/collection-requests":
                 household_id = payload["householdId"]
