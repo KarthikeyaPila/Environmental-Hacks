@@ -16,6 +16,31 @@
   };
   const revealCollector = () => setTimeout(() => document.documentElement.classList.remove('collector-pending'), 0);
   const districtId = name => name.toLowerCase().replaceAll(' ', '-');
+  const selectableMapUrl = 'map/delhi-map-selectable.html';
+  if (!window.__phirSelectableMapGuard) {
+    const replaceWith = Element.prototype.replaceWith;
+    Element.prototype.replaceWith = function(...nodes) {
+      if (this.classList?.contains('live-delhi-map-frame') && nodes[0]?.tagName === 'IMG') return;
+      return replaceWith.apply(this, nodes);
+    };
+    window.__phirSelectableMapGuard = true;
+  }
+  function mountSelectableMap() {
+    document.querySelectorAll('.workspace .phir-delhi-map').forEach(mapShell => {
+      const frame = mapShell.querySelector('iframe');
+      if (frame?.src.includes('delhi-map-selectable.html')) return;
+      const oldMap = frame || mapShell.querySelector('img');
+      if (!oldMap) return;
+      const next = document.createElement('iframe');
+      next.title = 'Selectable Delhi district collection map';
+      next.src = selectableMapUrl;
+      next.className = 'live-delhi-map-frame';
+      next.addEventListener('load', () => window.__phirCollectorAreas && installLiveMap(window.__phirCollectorAreas), {once: true});
+      oldMap.replaceWith(next);
+    });
+  }
+  new MutationObserver(mountSelectableMap).observe(document.querySelector('#app'), {childList: true, subtree: true});
+  mountSelectableMap();
   function installLiveMap(areas) {
     const mapShell = document.querySelector('.phir-delhi-map');
     if (!window.__phirSelectableMapGuard) {
@@ -33,7 +58,7 @@
       const oldMap = image || frame;
       frame = document.createElement('iframe');
       frame.title = 'Selectable Delhi district collection map';
-      frame.src = 'map/delhi-map-selectable.html';
+      frame.src = selectableMapUrl;
       frame.className = 'live-delhi-map-frame';
       oldMap.replaceWith(frame);
       frame.addEventListener('load', () => installLiveMap(areas), {once: true});
@@ -42,7 +67,7 @@
     if (!frame) {
       const frame = document.createElement('iframe');
       frame.title = 'Selectable Delhi district collection map';
-      frame.src = 'map/delhi-map-selectable.html';
+      frame.src = selectableMapUrl;
       frame.className = 'live-delhi-map-frame';
       frame.addEventListener('load', () => installLiveMap(areas), {once: true});
       mapShell?.prepend(frame);
@@ -87,6 +112,7 @@
       api(`/api/kabadiwalas/${collectorId}/metrics`),
       api(`/api/kabadiwalas/${collectorId}/profile`),
     ]);
+    window.__phirCollectorAreas = areas;
     areas.areas.forEach(item => { areaIds[item.name] = item.areaId || slug(item.name); });
     // Start the collection map on a locality with a real opportunity when
     // entering the role. Previously the household's default locality could
