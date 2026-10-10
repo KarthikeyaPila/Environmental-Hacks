@@ -61,7 +61,11 @@
       try {
         const preview = form.querySelector('#photo-preview');
         if (preview) { preview.src = URL.createObjectURL(file); preview.hidden = false; }
-        if (message) { message.className = 'note'; message.textContent = 'Analyzing photo with the AWS model…'; }
+        const resultTitle = form.querySelector('#photo-result-title');
+        const resultCopy = form.querySelector('#photo-result-copy');
+        if (resultTitle) resultTitle.textContent = 'Analyzing your photo…';
+        if (resultCopy) resultCopy.textContent = 'Checking for one dominant recyclable material.';
+        if (message) { message.className = 'note'; message.textContent = ''; }
         const upload = await api('/api/image-upload', {method: 'POST', body: JSON.stringify({filename: file.name, contentType: file.type})});
         const uploaded = await fetch(upload.uploadUrl, {method: 'PUT', headers: {'Content-Type': file.type, 'x-amz-server-side-encryption': 'AES256'}, body: file});
         if (!uploaded.ok) throw new Error(`Image upload failed (${uploaded.status}).`);
@@ -73,9 +77,17 @@
         form.dataset.recommendedType = type;
         const select = form.querySelector('#material-type');
         if (select && [...select.options].some(option => option.value === type)) select.value = type;
-        if (message) { message.className = 'note'; message.textContent = `Recommended: ${type} (${Math.round(Number(detection.confidence || 0) * 100)}% confidence). Please review and confirm.`; }
+        const confidence = Math.round(Number(detection.confidence || 0) * 100);
+        if (resultTitle) resultTitle.textContent = `We think this is ${type}.`;
+        if (resultCopy) resultCopy.textContent = `${confidence}% confidence · Review the material and confirm below.`;
+        const submit = form.querySelector('#material-submit');
+        if (submit) submit.innerHTML = `${icon('check')} Confirm ${type} · add material`;
       } catch (error) {
-        if (message) { message.className = 'error-message'; message.textContent = `Recognition failed: ${error.message}. You can select the material manually.`; }
+        const resultTitle = form.querySelector('#photo-result-title');
+        const resultCopy = form.querySelector('#photo-result-copy');
+        if (resultTitle) resultTitle.textContent = 'We could not identify this photo.';
+        if (resultCopy) resultCopy.textContent = 'Choose the material manually, then confirm below.';
+        if (message) { message.className = 'error-message'; message.textContent = `Recognition failed: ${error.message}`; }
       }
     })();
   }, true);

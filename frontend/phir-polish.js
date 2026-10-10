@@ -5,6 +5,10 @@
     .phir-live-status{position:fixed;right:18px;bottom:18px;z-index:80;display:flex;align-items:center;gap:8px;padding:9px 13px;border:1px solid #24216b33;border-radius:22px;background:#fff1ca;color:#24216b;font-size:11px;box-shadow:0 6px 22px #24216b1c;opacity:0;transform:translateY(8px);transition:opacity .2s,transform .2s;pointer-events:none}
     .phir-live-status.visible{opacity:1;transform:none}
     .phir-live-status:before{content:'';width:8px;height:8px;border-radius:50%;background:#007e65;box-shadow:0 0 0 4px #007e6520}
+    .photo-result{margin:18px 0;padding:16px 18px;border:1px solid #007e6544;border-left:3px solid #007e65;background:#e7f5ed;display:grid;gap:4px}
+    .photo-result strong{font-size:20px;color:#24216b}
+    .photo-result p{font-size:12px;color:#4e4b77}
+    .confirm-material{display:flex;gap:10px;align-items:flex-start;margin:16px 0;font-size:13px;color:#24216b}
     .phir-live-status.busy:before{background:#d08b18;box-shadow:0 0 0 4px #d08b1820;animation:phir-pulse 1s infinite}
     @keyframes phir-pulse{50%{opacity:.35}}
     @media(max-width:700px){.phir-live-status{right:10px;bottom:10px}.workspace-content,.workspace-main{padding-left:16px!important;padding-right:16px!important}.map-layout,.two-col,.profile-grid{grid-template-columns:1fr!important}.table-scroll{overflow-x:auto}.topbar{padding-left:16px!important;padding-right:16px!important}}
