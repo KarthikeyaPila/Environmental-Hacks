@@ -48,6 +48,22 @@
     }
     if (note) note.textContent = 'Collection and transfer are recorded handovers. Actual recycling needs downstream evidence.';
   }
+  function renderRegionRequests(requests) {
+    const panel = document.querySelector('.dashboard-map-detail');
+    if (!panel) return;
+    const selectedRegion = selectedMapArea;
+    const visible = selectedRegion ? requests.filter(request => request.area === selectedRegion) : requests;
+    const grouped = visible.reduce((result, request) => {
+      const key = request.area || 'Unknown locality';
+      const entry = result[key] || (result[key] = {count: 0, kg: 0});
+      entry.count += 1;
+      entry.kg += Number(request.quantityKg || 0);
+      return result;
+    }, {});
+    const groupSummary = Object.entries(grouped).map(([name, value]) => `${name}: ${value.count} request${value.count === 1 ? '' : 's'} · ${value.kg.toFixed(1)} kg`).join(' · ');
+    const rows = visible.map(request => `<tr><td>${request.area || '—'}</td><td>${Number(request.quantityKg || 0).toFixed(1)} kg</td><td><span class="badge active">${request.status}</span></td><td>${request.status === 'accepted' ? `<button class="btn secondary" data-action="collect" data-id="${request.id}">Mark collected</button>` : request.status === 'pending' ? `<button class="btn secondary" data-action="accept" data-id="${request.id}">Accept</button>` : request.status === 'collected' ? 'Collection recorded' : request.status}</td></tr>`).join('');
+    panel.innerHTML = `<div class="section-heading"><h2>${selectedRegion || 'Delhi'}</h2><span class="badge">${visible.length} live request${visible.length === 1 ? '' : 's'}</span></div><p class="muted" style="margin:-10px 0 18px">${selectedRegion ? 'Selected locality requests' : 'Delhi-wide recovery requests'}${groupSummary ? ` · ${groupSummary}` : ''}</p>${rows ? `<div class="table-scroll"><table><thead><tr><th>Locality</th><th>Material</th><th>Status</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="empty"><h3>No requests in this view.</h3><p>Select another district or add a collection request from Household.</p></div>`}`;
+  }
   function mountSelectableMap() {
     document.querySelectorAll('.workspace .map:not(.phir-delhi-map)').forEach(mapShell => {
       mapShell.classList.add('phir-delhi-map');
@@ -134,6 +150,7 @@
     state.materials = [...visible, ...all].flatMap(request => Object.entries(request.quantityByType || {}).map(([type, quantity]) => ({id: `${request.id}:${type}`, type, quantityKg: Number(quantity), estimatedValue: null, status: request.status, owner: 'household'})));
     state.lots = inventory.inventory.map(item => ({id: `inventory:${item.materialType}`, type: item.materialType, quantityKg: Number(item.quantityKg), status: 'collected', partner: 'Your collection inventory', area}));
     render();
+    renderRegionRequests(state.requests);
     document.querySelectorAll('.section-heading').forEach(heading => {
       if (heading.querySelector('h3')?.textContent.trim() !== 'Neighbourhood preview') return;
       heading.nextElementSibling?.remove();
