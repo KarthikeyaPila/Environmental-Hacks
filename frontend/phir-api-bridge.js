@@ -47,7 +47,12 @@
     const button = event.target.closest('[data-action]');
     if (!button || view !== 'household') return;
     const action = button.dataset.action;
-    if (action === 'request-collection') {
+    if (action === 'photo-material') {
+      // The explicit submit action is the confirmation; the extra checkbox
+      // adds friction and can block the form through native required-field
+      // validation. Remove it after the modal is opened by the main UI.
+      setTimeout(() => modal.querySelector('.confirm-material')?.remove(), 0);
+    } else if (action === 'request-collection') {
       event.preventDefault(); event.stopImmediatePropagation();
       run(() => api('/api/collection-requests', {method: 'POST', body: JSON.stringify({householdId})}), 'Collection request created.');
     } else if (action === 'delete-confirmed') {
