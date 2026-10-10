@@ -14,6 +14,7 @@
     const materialIds = Object.keys(item.quantityByType || {}).map(type => `${item.requestId}:${type}`);
     return {id: item.requestId, status: item.status, area: item.region || area, region: item.region || area, regionId: item.regionId, materialIds, quantityByType: item.quantityByType || {}, quantityKg: Object.values(item.quantityByType || {}).reduce((sum, value) => sum + Number(value), 0), estimatedValue: item.estimatedValueInr};
   };
+  const revealCollector = () => setTimeout(() => document.documentElement.classList.remove('collector-pending'), 0);
   async function refreshCollector() {
     const [areas, inventory, requests, metrics, profile] = await Promise.all([
       api(`/api/kabadiwalas/${collectorId}/areas`),
@@ -42,6 +43,7 @@
       map.querySelectorAll('.map-pin').forEach(pin => pin.remove());
       map.insertAdjacentHTML('beforeend', areas.areas.map(item => `<button class="map-pin ${area === item.name ? 'selected' : ''}" data-action="area" data-area="${item.name}" aria-label="Explore ${item.name}">${item.name}<br>${item.materialKg || 0} kg · ${item.requestCount || 0} requests</button>`).join(''));
     }
+    revealCollector();
   }
   async function run(action, success) {
     document.querySelectorAll('button[data-action]').forEach(button => { button.disabled = true; button.dataset.busy = 'true'; });
@@ -77,6 +79,6 @@
     }
   }, true);
   const originalGo = go;
-  go = function(next) { originalGo(next); if (next === 'collector') refreshCollector().catch(error => toast(error.message)); };
-  if (view === 'collector') refreshCollector().catch(error => toast(error.message));
+  go = function(next) { originalGo(next); if (next === 'collector') refreshCollector().catch(error => { document.documentElement.classList.remove('collector-pending'); toast(error.message); }); };
+  if (view === 'collector') refreshCollector().catch(error => { document.documentElement.classList.remove('collector-pending'); toast(error.message); });
 })();
