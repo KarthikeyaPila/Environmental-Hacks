@@ -168,6 +168,14 @@
     run(() => api(id ? `/api/materials/${id}` : '/api/materials', {method: id ? 'PUT' : 'POST', body: JSON.stringify(payload)}), 'Material saved.');
   }, true);
   const originalGo = go;
+  const originalRender = render;
+  render = function() {
+    originalRender();
+    if (view === 'household') {
+      polishHouseholdLayout();
+      setTimeout(polishHouseholdLayout, 0);
+    }
+  };
   go = function(next) { originalGo(next); if (next === 'household') refreshHousehold().catch(error => toast(error.message)); };
   if (view === 'household') refreshHousehold().catch(error => toast(error.message));
 })();
