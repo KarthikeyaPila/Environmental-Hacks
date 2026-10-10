@@ -84,6 +84,17 @@ class DynamoRecoveryRepository:
     def delete_material(self, material_id: str) -> None:
         self.table.delete_item(Key={"pk": f"MATERIAL#{material_id}", "sk": "MATERIAL"})
 
+    def clear(self) -> None:
+        """Delete all records from this demo table before a deterministic reseed."""
+        response = self.table.scan(ProjectionExpression="pk, sk")
+        items = response.get("Items", [])
+        while response.get("LastEvaluatedKey"):
+            response = self.table.scan(ProjectionExpression="pk, sk", ExclusiveStartKey=response["LastEvaluatedKey"])
+            items.extend(response.get("Items", []))
+        with self.table.batch_writer() as batch:
+            for item in items:
+                batch.delete_item(Key={"pk": item["pk"], "sk": item["sk"]})
+
     def save_service(self, service) -> None:
         """Batch-save the current domain snapshot; useful during migration/backfill."""
         with self.table.batch_writer(overwrite_by_pkeys=["pk", "sk"]) as batch:

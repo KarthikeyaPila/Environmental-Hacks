@@ -18,11 +18,11 @@ except ImportError:  # boto3 is optional for local mock mode
     class ClientError(Exception):
         pass
 
-from .area_opportunities import AreaOpportunityService
+from .area_opportunities import AreaOpportunityService, DELHI_AREAS
 from .image_classifier import classify_s3_object, classify_with_rekognition
 from .image_storage import create_upload, delete_upload
 from .route_planner import plan_preview
-from .recovery_domain import Profile, RecoveryService, RequestStatus, Role
+from .recovery_domain import Profile, RecoveryService, RequestStatus, RequirementStatus, Role
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -30,21 +30,57 @@ ROOT = Path(__file__).resolve().parent.parent
 
 def build_state(with_demo_requests: bool = False) -> tuple[RecoveryService, AreaOpportunityService]:
     service = RecoveryService()
-    service.add_profile(Profile("household_1", Role.HOUSEHOLD, "Household A", 28.7042, 77.1024))
-    service.add_profile(Profile("household_2", Role.HOUSEHOLD, "Household B", 28.6450, 77.2165))
-    service.add_profile(Profile("household_3", Role.HOUSEHOLD, "Household C", 28.5677, 77.2433))
-    service.add_profile(Profile("household_4", Role.HOUSEHOLD, "Household D", 28.5244, 77.2066))
-    service.add_profile(Profile("kabadiwala_1", Role.KABADIWALA, "Ramesh Recovery", 28.6800, 77.1500, 1, {"pet", "cardboard", "paper", "aluminium", "glass", "wood"}, 4.8, 1.08))
-    service.add_profile(Profile("recycler_1", Role.RECYCLER, "GreenCycle Delhi", 28.6500, 77.2000))
-    first = service.add_material("household_1", "pet", 4)
-    service.add_material("household_1", "cardboard", 2)
-    second = service.add_material("household_2", "aluminium", 1.5)
-    third = service.add_material("household_3", "paper", 8)
-    fourth = service.add_material("household_4", "glass", 12)
+    areas = {area.name: area for area in DELHI_AREAS}
+    household_names = [
+        "Asha Verma", "Bharat Singh", "Chitra Rao", "Deepak Sharma", "Esha Mehta", "Farhan Khan",
+        "Gauri Nair", "Harish Gupta", "Ishita Jain", "Jatin Kapoor", "Kavita Das", "Lokesh Yadav",
+        "Meena Iyer", "Nikhil Batra", " पूजा Shah", "Ravi Menon", "Sara Thomas", "Tarun Bose",
+        "Uma Sethi", "Vikram Joshi", "Wafa Ali", "Yash Malhotra", "Zoya Sen", "Anil Roy",
+    ]
+    household_regions = ["North West", "West", "South West", "Central", "South", "South East"]
+    for index, name in enumerate(household_names, start=1):
+        area = areas[household_regions[(index - 1) % len(household_regions)]]
+        latitude, longitude = area.center_latitude, area.center_longitude
+        if index == 1:
+            latitude, longitude = 28.7042, 77.1024
+        service.add_profile(Profile(f"household_{index}", Role.HOUSEHOLD, name, latitude, longitude, locality=area.name))
+
+    kabadiwalas = [
+        ("Ramesh Recovery", "West", {"pet", "cardboard", "paper", "aluminium", "glass", "wood"}),
+        ("Farida Collection", "West", {"pet", "cardboard", "paper", "glass"}),
+        ("Suresh Kabadi Network", "Central", {"pet", "paper", "aluminium", "glass"}),
+        ("Lakshmi Materials", "South", {"pet", "cardboard", "paper", "aluminium", "wood"}),
+    ]
+    for index, (name, region, materials) in enumerate(kabadiwalas, start=1):
+        area = areas[region]
+        service.add_profile(Profile(f"kabadiwala_{index}", Role.KABADIWALA, name, area.center_latitude, area.center_longitude, 25, materials, 4.5 + index / 10, 1 + index / 20, locality=region))
+
+    recycler_names = ["GreenCycle Delhi", "ReForm Plastics", "Nayi Disha Paper", "MetalLoop India", "GlassRoot Works", "Urban Fibre Co", "Bharat Materials", "Circular Carton", "CleanCast Industries"]
+    recycler_materials = ["pet", "paper", "cardboard", "aluminium", "glass", "paper", "pet", "cardboard", "aluminium"]
+    for index, name in enumerate(recycler_names, start=1):
+        area = DELHI_AREAS[(index + 2) % len(DELHI_AREAS)]
+        service.add_profile(Profile(f"recycler_{index}", Role.RECYCLER, name, area.center_latitude, area.center_longitude, locality=area.name, contact=f"materials{index}@demo-recycler.in"))
+
+    material_types = ["pet", "cardboard", "paper", "aluminium", "glass", "wood"]
+    for index in range(1, 25):
+        household_id = f"household_{index}"
+        first_quantity = 4 if index == 1 else round(1.5 + (index % 7) * 0.75, 2)
+        second_quantity = 2 if index == 1 else round(2 + (index % 5) * 0.5, 2)
+        first = service.add_material(household_id, material_types[(index - 1) % len(material_types)], first_quantity)
+        service.add_material(household_id, material_types[index % len(material_types)], second_quantity)
+        if with_demo_requests and index > 1:
+            request = service.create_collection_request(household_id, [first.id])
+            if index % 4 == 0:
+                service.accept_request(f"kabadiwala_{((index // 2) % 4) + 1}", request.id)
+            if index % 8 == 0:
+                service.collect_request(request.assigned_kabadiwala_id, request.id)
+
     if with_demo_requests:
-        service.create_collection_request("household_2", [second.id])
-        service.create_collection_request("household_3", [third.id])
-        service.create_collection_request("household_4", [fourth.id])
+        for index in range(1, 10):
+            requirement = service.create_requirement(f"recycler_{index}", recycler_materials[index - 1], 8 + index * 2, 2)
+            if index % 3 == 0:
+                requirement.fulfilled_quantity_kg = requirement.required_quantity_kg
+                requirement.status = RequirementStatus.FULFILLED
     return service, AreaOpportunityService()
 
 

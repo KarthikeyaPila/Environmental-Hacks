@@ -13,6 +13,10 @@ Harden the deployed three-role vertical slice and verify the live browser flow.
 - Shared API contract
 - Deployed Amplify frontend, API Gateway/Lambda backend, DynamoDB persistence,
   temporary S3 image uploads, and Rekognition integration
+- Deterministic DynamoDB demo network with 24 households, 4 kabadiwalas, 9
+  recyclers, 48 materials, 23 collection requests, and six active Delhi areas
+- Reproducible seed command in `scripts/seed_demo_data.py`, including an
+  explicit `--replace` mode for resetting the demo table
 
 ## Next
 

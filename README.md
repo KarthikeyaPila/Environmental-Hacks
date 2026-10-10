@@ -35,6 +35,26 @@ Custom Labels.
 The current hosted demo is available at:
 `https://main.d3hgpobebqphe1.amplifyapp.com/`
 
+## Demo network data
+
+The deployed proof of concept uses deterministic sample records rather than
+authentication: 24 households, 4 kabadiwalas, 9 recycler companies, 48
+materials, and collection opportunities across six Delhi regions. The seed
+records are stored in DynamoDB so the household → collection → recycler flow
+can be demonstrated consistently across roles.
+
+To inspect the fixture locally, or replace the demo table with the same data:
+
+```bash
+python3 scripts/seed_demo_data.py
+PYTHONPATH=.aws-sam/build/RecoveryApi python3 scripts/seed_demo_data.py \
+  --write --replace --table environmental-recovery --region ap-south-1
+```
+
+`--replace` is intentionally explicit because it clears the selected demo
+table before writing the deterministic fixture. Authentication and real-user
+identity management remain outside the hackathon MVP.
+
 ## Development
 
 Use Python 3.11+ and run the dependency-free test suite from the repository
