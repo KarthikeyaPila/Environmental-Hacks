@@ -21,6 +21,7 @@
   const localRequest = item => item && ({id: item.id, status: item.status, quantityKg: Object.values(item.quantityByType || {}).reduce((sum, value) => sum + Number(value), 0), quantityByType: item.quantityByType || {}, materialIds: [], area: item.region || 'Delhi', region: item.region || 'Delhi', regionId: item.regionId, assignedKabadiwalaId: item.assignedKabadiwalaId});
   function polishHouseholdLayout() {
     if (view !== 'household') return;
+    return;
     const manual = document.querySelector('.workspace .dashboard-identify [data-action="add-material"]');
     if (manual) manual.textContent = 'Add materials manually';
     document.querySelectorAll('.workspace .metric-label').forEach(label => {
