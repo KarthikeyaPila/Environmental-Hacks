@@ -138,7 +138,21 @@ class DemoHandler(SimpleHTTPRequestHandler):
                 users = [{"id": p.id, "role": p.role.value, "name": p.name} for p in service.profiles.values()]
                 return self._send_json({"users": users})
             if path == "/api/demo/areas" or path == "/api/kabadiwalas/kabadiwala_1/areas":
-                return self._send_json({"areas": area_service.summaries(service.requests.values())})
+                summaries = area_service.summaries(service.requests.values())
+                status_counts = {status.value: 0 for status in RequestStatus}
+                for request in service.requests.values():
+                    status_counts[request.status.value] += 1
+                return self._send_json({
+                    "areas": summaries,
+                    "requestSummary": {
+                        "total": len(service.requests),
+                        "open": status_counts[RequestStatus.PENDING.value],
+                        "accepted": status_counts[RequestStatus.ACCEPTED.value],
+                        "collected": status_counts[RequestStatus.COLLECTED.value],
+                        "rejected": status_counts[RequestStatus.REJECTED.value],
+                        "cancelled": status_counts[RequestStatus.CANCELLED.value],
+                    },
+                })
             if path.startswith("/api/kabadiwalas/kabadiwala_1/areas/") and path.endswith("/opportunities"):
                 area_id = path.split("/")[-2]
                 return self._send_json({"opportunities": area_service.opportunities(area_id, service.requests.values())})

@@ -41,7 +41,15 @@
     const map = document.querySelector('.map');
     if (map) {
       map.querySelectorAll('.map-pin').forEach(pin => pin.remove());
-      map.insertAdjacentHTML('beforeend', areas.areas.map(item => `<button class="map-pin ${area === item.name ? 'selected' : ''}" data-action="area" data-area="${item.name}" aria-label="Explore ${item.name}">${item.name}<br>${item.materialKg || 0} kg · ${item.requestCount || 0} requests</button>`).join(''));
+      map.insertAdjacentHTML('beforeend', areas.areas.map(item => `<button class="map-pin ${area === item.name ? 'selected' : ''}" data-action="area" data-area="${item.name}" aria-label="Explore ${item.name}">${item.name}<br>${item.materialKg || 0} kg · ${item.requestCount || 0} open requests</button>`).join(''));
+      let summary = map.parentElement?.querySelector('.collector-map-summary');
+      if (!summary) {
+        summary = document.createElement('p');
+        summary.className = 'collector-map-summary muted';
+        map.insertAdjacentElement('afterend', summary);
+      }
+      const requestSummary = areas.requestSummary || {};
+      summary.textContent = `${requestSummary.open || 0} open requests · ${requestSummary.total || 0} total recorded · ${requestSummary.accepted || 0} accepted · ${requestSummary.collected || 0} collected`;
     }
     revealCollector();
   }

@@ -42,6 +42,8 @@ class ApiServerTests(unittest.TestCase):
         status, areas = self.call("GET", "/api/kabadiwalas/kabadiwala_1/areas")
         self.assertEqual(status, 200)
         self.assertEqual(sum(area["requestCount"] for area in areas["areas"]), 1)
+        self.assertEqual(areas["requestSummary"]["total"], 1)
+        self.assertEqual(areas["requestSummary"]["open"], 1)
         area_id = next(area["areaId"] for area in areas["areas"] if area["requestCount"] == 1)
 
         status, opportunities = self.call("GET", f"/api/kabadiwalas/kabadiwala_1/areas/{area_id}/opportunities")
