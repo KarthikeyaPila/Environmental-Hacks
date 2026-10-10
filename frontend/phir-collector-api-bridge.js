@@ -111,13 +111,16 @@
     render();
     ensureLocalitySummary();
     const locality = areas.areas.find(item => item.name === area) || {name: area, requestCount: 0, materialKg: 0, estimatedValueInr: 0, materialBreakdown: {}};
-    const localityPanel = document.querySelector('.map-layout > section:nth-child(2)');
-    if (localityPanel) {
+    const paintLocalitySummary = () => {
+      const localityPanel = document.querySelector('.map-layout > section:nth-child(2)');
+      if (!localityPanel) return;
       let summary = localityPanel.querySelector('.collector-locality-summary');
       if (!summary) { summary = document.createElement('div'); summary.className = 'collector-locality-summary'; localityPanel.prepend(summary); }
       const materials = Object.entries(locality.materialBreakdown || {}).map(([type, value]) => `${type.replaceAll('_', ' ')} ${Number(value).toFixed(1)} kg`).join(' · ') || 'No material recorded yet';
       summary.innerHTML = `<h3>${locality.name}</h3><p>Selected locality overview</p><div class="collector-locality-summary-grid"><div class="collector-locality-stat"><strong>${locality.requestCount || 0}</strong><span>household requests</span></div><div class="collector-locality-stat"><strong>${Number(locality.materialKg || 0).toFixed(1)} kg</strong><span>material available</span></div><div class="collector-locality-stat"><strong>₹${locality.estimatedValueInr || 0}</strong><span>estimated value</span></div><div class="collector-locality-stat"><strong>${materials}</strong><span>material mix</span></div></div>`;
-    }
+    };
+    paintLocalitySummary();
+    [0, 100, 500].forEach(delay => setTimeout(paintLocalitySummary, delay));
     window.phirPaintMetrics?.([`${metrics.requestsAccepted}`, `${metrics.totalCollectedKg} kg`, `₹${metrics.estimatedRevenueInr}`, `${metrics.collectionsCompleted}`]);
     window.phirCollectorProfile = profile;
     const map = document.querySelector('.map');
