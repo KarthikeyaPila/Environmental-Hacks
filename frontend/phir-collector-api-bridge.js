@@ -17,6 +17,13 @@
   const revealCollector = () => setTimeout(() => document.documentElement.classList.remove('collector-pending'), 0);
   const districtId = name => name.toLowerCase().replaceAll(' ', '-');
   const selectableMapUrl = 'map/delhi-map-selectable.html';
+  function ensureLocalitySummary() {
+    if (document.getElementById('collector-locality-summary-style')) return;
+    const style = document.createElement('style');
+    style.id = 'collector-locality-summary-style';
+    style.textContent = '.collector-locality-summary{margin:0 0 22px;padding:20px 22px;border:2px solid var(--teal,#008b78);border-radius:18px;background:rgba(255,250,232,.82);box-shadow:4px 4px 0 var(--yellow,#ffd83d)}.collector-locality-summary h3{margin:0 0 5px;color:var(--red,#cf1f3d)}.collector-locality-summary p{margin:0 0 16px}.collector-locality-summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.collector-locality-stat{padding:10px 12px;border:1px solid rgba(0,75,110,.25);border-radius:10px;background:rgba(255,255,255,.32)}.collector-locality-stat strong{display:block;font-size:1.25rem;color:var(--teal,#008b78)}.collector-locality-stat span{font-size:.78rem}.map-layout>section:first-child>.note{display:none}@media(max-width:800px){.collector-locality-summary-grid{grid-template-columns:1fr 1fr}}';
+    document.head.appendChild(style);
+  }
   function mountSelectableMap() {
     document.querySelectorAll('.workspace .map:not(.phir-delhi-map)').forEach(mapShell => {
       mapShell.classList.add('phir-delhi-map');
@@ -102,6 +109,15 @@
     state.materials = [...visible, ...all].flatMap(request => Object.entries(request.quantityByType || {}).map(([type, quantity]) => ({id: `${request.id}:${type}`, type, quantityKg: Number(quantity), estimatedValue: null, status: request.status, owner: 'household'})));
     state.lots = inventory.inventory.map(item => ({id: `inventory:${item.materialType}`, type: item.materialType, quantityKg: Number(item.quantityKg), status: 'collected', partner: 'Your collection inventory', area}));
     render();
+    ensureLocalitySummary();
+    const locality = areas.areas.find(item => item.name === area) || {name: area, requestCount: 0, materialKg: 0, estimatedValueInr: 0, materialBreakdown: {}};
+    const localityPanel = document.querySelector('.map-layout > section:nth-child(2)');
+    if (localityPanel) {
+      let summary = localityPanel.querySelector('.collector-locality-summary');
+      if (!summary) { summary = document.createElement('div'); summary.className = 'collector-locality-summary'; localityPanel.prepend(summary); }
+      const materials = Object.entries(locality.materialBreakdown || {}).map(([type, value]) => `${type.replaceAll('_', ' ')} ${Number(value).toFixed(1)} kg`).join(' · ') || 'No material recorded yet';
+      summary.innerHTML = `<h3>${locality.name}</h3><p>Selected locality overview</p><div class="collector-locality-summary-grid"><div class="collector-locality-stat"><strong>${locality.requestCount || 0}</strong><span>household requests</span></div><div class="collector-locality-stat"><strong>${Number(locality.materialKg || 0).toFixed(1)} kg</strong><span>material available</span></div><div class="collector-locality-stat"><strong>₹${locality.estimatedValueInr || 0}</strong><span>estimated value</span></div><div class="collector-locality-stat"><strong>${materials}</strong><span>material mix</span></div></div>`;
+    }
     window.phirPaintMetrics?.([`${metrics.requestsAccepted}`, `${metrics.totalCollectedKg} kg`, `₹${metrics.estimatedRevenueInr}`, `${metrics.collectionsCompleted}`]);
     window.phirCollectorProfile = profile;
     const map = document.querySelector('.map');
