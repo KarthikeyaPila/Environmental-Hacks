@@ -11,6 +11,12 @@
     if (!response.ok) throw new Error(body?.error?.message || 'The recovery service is unavailable.');
     return body;
   };
+  const fileAsBase64 = file => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
   const localMaterial = item => ({id: item.id, type: item.materialType, quantityKg: Number(item.quantityKg), estimatedValue: item.estimatedValueInr, status: item.status, owner: 'household'});
   const localRequest = item => item && ({id: item.id, status: item.status, quantityKg: Object.values(item.quantityByType || {}).reduce((sum, value) => sum + Number(value), 0), quantityByType: item.quantityByType || {}, materialIds: [], area: item.region || 'Delhi', region: item.region || 'Delhi', regionId: item.regionId, assignedKabadiwalaId: item.assignedKabadiwalaId});
   async function refreshHousehold() {
@@ -60,7 +66,7 @@
           if (!uploaded.ok) throw new Error(`Image upload failed (${uploaded.status}).`);
           result = await api('/api/classify-image', {method: 'POST', body: JSON.stringify({s3Key: upload.key})});
         } catch (uploadError) {
-          result = await api('/api/classify-image', {method: 'POST', body: JSON.stringify({filename: file.name})});
+          result = await api('/api/classify-image', {method: 'POST', body: JSON.stringify({filename: file.name, imageBase64: await fileAsBase64(file)})});
         }
         const detection = result.detections?.[0];
         if (!detection) throw new Error('No recyclable material was detected.');
