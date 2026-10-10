@@ -19,6 +19,15 @@
   });
   const localMaterial = item => ({id: item.id, type: item.materialType, quantityKg: Number(item.quantityKg), estimatedValue: item.estimatedValueInr, status: item.status || 'available', owner: 'household'});
   const localRequest = item => item && ({id: item.id, status: item.status, quantityKg: Object.values(item.quantityByType || {}).reduce((sum, value) => sum + Number(value), 0), quantityByType: item.quantityByType || {}, materialIds: [], area: item.region || 'Delhi', region: item.region || 'Delhi', regionId: item.regionId, assignedKabadiwalaId: item.assignedKabadiwalaId});
+  function polishHouseholdLayout() {
+    if (view !== 'household') return;
+    const manual = document.querySelector('.workspace [data-action="add-material"]');
+    if (manual) manual.textContent = 'Add materials manually';
+    document.querySelectorAll('.workspace .metric-label').forEach(label => {
+      if (label.textContent.trim() === 'Estimated value · sample') label.textContent = 'Estimated recovery value';
+    });
+    document.querySelector('.workspace[data-theme="household"] .two-col > aside')?.remove();
+  }
   async function refreshHousehold() {
     const [inventory, request, metrics] = await Promise.all([api(`/api/households/${householdId}/inventory`), api(`/api/households/${householdId}/collection-request`), api(`/api/households/${householdId}/metrics`)]);
     state.materials = inventory.inventory.map(localMaterial);
@@ -27,6 +36,7 @@
     // selecting a photo can outlive the initial household refresh and render()
     // would otherwise close the dialog while recognition is in progress.
     if (!modal.open) render();
+    polishHouseholdLayout();
     window.phirPaintMetrics?.([`${metrics.totalRecordedKg} kg`, `${metrics.totalCollectedKg} kg`, `₹${metrics.estimatedValueInr}`, `${metrics.collectionsCompleted}`]);
     const region = request.request?.region;
     const heading = document.querySelector('.collection-section .section-heading');

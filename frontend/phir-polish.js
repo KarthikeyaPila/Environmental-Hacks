@@ -9,6 +9,13 @@
     .photo-result strong{font-size:20px;color:#24216b}
     .photo-result p{font-size:12px;color:#4e4b77}
     .confirm-material{display:flex;gap:10px;align-items:flex-start;margin:16px 0;font-size:13px;color:#24216b}
+    .workspace[data-theme="household"] .metrics{gap:12px;margin-bottom:24px}
+    .workspace[data-theme="household"] .metric{min-height:92px;padding:16px 18px}
+    .workspace[data-theme="household"] .metric-value{font-size:26px}
+    .workspace[data-theme="household"] .collection-section{margin-top:26px;padding:22px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+    .workspace[data-theme="household"] .collection-section .status-line{padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#fff8e8}
+    .workspace[data-theme="household"] .collection-section .steps{margin-top:18px}
+    .workspace[data-theme="household"] .guide-section{margin-top:32px}
     .phir-live-status.busy:before{background:#d08b18;box-shadow:0 0 0 4px #d08b1820;animation:phir-pulse 1s infinite}
     @keyframes phir-pulse{50%{opacity:.35}}
     @media(max-width:700px){.phir-live-status{right:10px;bottom:10px}.workspace-content,.workspace-main{padding-left:16px!important;padding-right:16px!important}.map-layout,.two-col,.profile-grid{grid-template-columns:1fr!important}.table-scroll{overflow-x:auto}.topbar{padding-left:16px!important;padding-right:16px!important}}
