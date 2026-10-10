@@ -15,6 +15,10 @@
     .workspace[data-theme="household"] .household-collection-panel .section-heading h2{font-size:24px}
     .workspace[data-theme="household"] .household-collection-panel .steps{display:block;margin:20px 0}
     .workspace[data-theme="household"] .household-collection-panel .step{margin-bottom:10px}
+    /* The legacy partner sidebar is still present in the server-rendered
+       household template while the live collection panel is assembled. Keep
+       it out of the first paint so it cannot flash before being removed. */
+    .workspace[data-theme="household"] .two-col > aside:not(.household-collection-panel){display:none!important}
     .confirm-material{display:flex;gap:10px;align-items:flex-start;margin:16px 0;font-size:13px;color:#24216b}
     .phir-live-status.busy:before{background:#d08b18;box-shadow:0 0 0 4px #d08b1820;animation:phir-pulse 1s infinite}
     @keyframes phir-pulse{50%{opacity:.35}}
