@@ -15,6 +15,51 @@
     return {id: item.requestId, status: item.status, area: item.region || area, region: item.region || area, regionId: item.regionId, materialIds, quantityByType: item.quantityByType || {}, quantityKg: Object.values(item.quantityByType || {}).reduce((sum, value) => sum + Number(value), 0), estimatedValue: item.estimatedValueInr};
   };
   const revealCollector = () => setTimeout(() => document.documentElement.classList.remove('collector-pending'), 0);
+  const districtId = name => name.toLowerCase().replaceAll(' ', '-');
+  function installLiveMap(areas) {
+    const mapShell = document.querySelector('.phir-delhi-map');
+    const image = mapShell?.querySelector('.live-delhi-map-image');
+    if (image) {
+      const frame = document.createElement('iframe');
+      frame.title = 'Selectable Delhi district collection map';
+      frame.src = 'map/delhi-map-selectable.html';
+      frame.className = 'live-delhi-map-frame';
+      image.replaceWith(frame);
+      frame.addEventListener('load', () => installLiveMap(areas), {once: true});
+      return;
+    }
+    const frame = mapShell?.querySelector('iframe');
+    if (!frame?.contentWindow?.DelhiMap) return;
+    const map = frame.contentWindow.DelhiMap;
+    if (!frame.dataset.phirBound) {
+      frame.dataset.phirBound = 'true';
+      frame.contentDocument.addEventListener('district-select', event => {
+        const selected = event.detail;
+        const match = selected && areas.areas.find(item => districtId(item.name) === selected.id);
+        if (match && area !== match.name) {
+          area = match.name;
+          refreshCollector().catch(error => toast(error.message));
+        }
+      });
+    }
+    map.pins.replaceChildren();
+    if (!frame.contentDocument.getElementById('phir-live-pin-style')) {
+      const style = frame.contentDocument.createElement('style');
+      style.id = 'phir-live-pin-style';
+      style.textContent = '.live-request-pin{pointer-events:none}.live-request-pin circle{fill:#c91f3d;stroke:#fff;stroke-width:2}.live-request-pin.selected circle{fill:#008c78}.live-request-pin text{fill:#fff;font:600 12px system-ui,sans-serif;text-anchor:middle}';
+      frame.contentDocument.head.append(style);
+    }
+    areas.areas.filter(item => item.requestCount > 0).forEach(item => {
+      const district = frame.contentDocument.querySelector(`[data-district="${item.name}"]`);
+      const cx = Number(district?.dataset.cx || 0), cy = Number(district?.dataset.cy || 0);
+      if (!cx || !cy) return;
+      const group = frame.contentDocument.createElementNS('http://www.w3.org/2000/svg', 'g');
+      group.setAttribute('transform', `translate(${cx} ${cy})`);
+      group.setAttribute('class', `live-request-pin ${area === item.name ? 'selected' : ''}`);
+      group.innerHTML = `<circle r="17"/><text y="4">${item.requestCount}</text>`;
+      map.pins.append(group);
+    });
+  }
   async function refreshCollector() {
     const [areas, inventory, requests, metrics, profile] = await Promise.all([
       api(`/api/kabadiwalas/${collectorId}/areas`),
@@ -40,8 +85,6 @@
     window.phirCollectorProfile = profile;
     const map = document.querySelector('.map');
     if (map) {
-      map.querySelectorAll('.map-pin').forEach(pin => pin.remove());
-      map.insertAdjacentHTML('beforeend', areas.areas.map(item => `<button class="map-pin ${area === item.name ? 'selected' : ''}" data-action="area" data-area="${item.name}" aria-label="Explore ${item.name}">${item.name}<br>${item.materialKg || 0} kg · ${item.requestCount || 0} open requests</button>`).join(''));
       let summary = map.parentElement?.querySelector('.collector-map-summary');
       if (!summary) {
         summary = document.createElement('p');
@@ -52,6 +95,9 @@
       summary.textContent = `${requestSummary.open || 0} open requests · ${requestSummary.total || 0} total recorded · ${requestSummary.accepted || 0} accepted · ${requestSummary.collected || 0} collected`;
       const caption = map.querySelector('.delhi-map-caption');
       if (caption) caption.textContent = 'LIVE COLLECTION OPPORTUNITIES · Pins show current open requests from the recovery database';
+      installLiveMap(areas);
+      const frame = map.querySelector('iframe');
+      if (frame && !frame.contentWindow?.DelhiMap) frame.addEventListener('load', () => installLiveMap(areas), {once: true});
     }
     revealCollector();
   }
