@@ -26,6 +26,22 @@ Globals:
         REKOGNITION_MODEL_ARN: !Ref RekognitionModelArn
 
 Resources:
+  RecoveryHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins:
+          - '*'
+        AllowHeaders:
+          - content-type
+          - x-amz-server-side-encryption
+        AllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+
   RecoveryApi:
     Type: AWS::Serverless::Function
     Properties:
@@ -62,10 +78,11 @@ Resources:
         Api:
           Type: HttpApi
           Properties:
+            ApiId: !Ref RecoveryHttpApi
             Path: /{proxy+}
             Method: ANY
 
 Outputs:
   ApiUrl:
     Description: Recovery API endpoint
-    Value: !Sub https://${ServerlessHttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}
+    Value: !Sub https://${RecoveryHttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}

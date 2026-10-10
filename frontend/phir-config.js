@@ -1,1 +1,1 @@
-window.PHIR_API_BASE = 'https://gk8tedtst5.execute-api.ap-south-1.amazonaws.com';
+window.PHIR_API_BASE = 'https://jxhlv53d4f.execute-api.ap-south-1.amazonaws.com';
