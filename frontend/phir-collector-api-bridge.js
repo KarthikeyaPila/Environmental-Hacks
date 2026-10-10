@@ -21,7 +21,7 @@
     if (document.getElementById('collector-locality-summary-style')) return;
     const style = document.createElement('style');
     style.id = 'collector-locality-summary-style';
-    style.textContent = '.collector-locality-summary{margin:0 0 22px;padding:20px 22px;border:2px solid var(--teal,#008b78);border-radius:18px;background:rgba(255,250,232,.82);box-shadow:4px 4px 0 var(--yellow,#ffd83d)}.collector-locality-summary h3{margin:0 0 5px;color:var(--red,#cf1f3d)}.collector-locality-summary p{margin:0 0 16px}.collector-locality-summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.collector-locality-stat{padding:10px 12px;border:1px solid rgba(0,75,110,.25);border-radius:10px;background:rgba(255,255,255,.32)}.collector-locality-stat strong{display:block;font-size:1.25rem;color:var(--teal,#008b78)}.collector-locality-stat span{font-size:.78rem}.map-layout>section:first-child>.note{display:none}@media(max-width:800px){.collector-locality-summary-grid{grid-template-columns:1fr 1fr}}';
+    style.textContent = '.collector-locality-summary{grid-column:1/-1;margin:0 0 16px;padding:18px 20px;border:2px solid var(--teal,#008b78);border-radius:18px;background:rgba(255,250,232,.9);box-shadow:4px 4px 0 var(--yellow,#ffd83d)}.collector-locality-summary h3{margin:0 0 5px;color:var(--red,#cf1f3d)}.collector-locality-summary p{margin:0 0 14px}.collector-locality-summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.collector-locality-stat{padding:10px 12px;border:1px solid rgba(0,75,110,.25);border-radius:10px;background:rgba(255,255,255,.32)}.collector-locality-stat strong{display:block;font-size:1.15rem;color:var(--teal,#008b78)}.collector-locality-stat span{font-size:.78rem}.map-layout .note{display:none!important}@media(max-width:800px){.collector-locality-summary-grid{grid-template-columns:1fr 1fr}}';
     document.head.appendChild(style);
   }
   function mountSelectableMap() {
@@ -112,8 +112,12 @@
     ensureLocalitySummary();
     const locality = areas.areas.find(item => item.name === area) || {name: area, requestCount: 0, materialKg: 0, estimatedValueInr: 0, materialBreakdown: {}};
     const paintLocalitySummary = () => {
-      const localityPanel = document.querySelector('.map-layout > section:nth-child(2)');
+      document.querySelectorAll('.note').forEach(note => {
+        if (note.textContent.includes('illustrated locality preview') || note.textContent.includes('Density labels')) note.remove();
+      });
+      const localityPanel = document.querySelector('.dashboard-region-layout > .metrics') || document.querySelector('.map-layout > section:nth-child(2)');
       if (!localityPanel) return;
+      document.querySelectorAll('.collector-locality-summary').forEach(existing => { if (existing.parentElement !== localityPanel) existing.remove(); });
       let summary = localityPanel.querySelector('.collector-locality-summary');
       if (!summary) { summary = document.createElement('div'); summary.className = 'collector-locality-summary'; localityPanel.prepend(summary); }
       const materials = Object.entries(locality.materialBreakdown || {}).map(([type, value]) => `${type.replaceAll('_', ' ')} ${Number(value).toFixed(1)} kg`).join(' · ') || 'No material recorded yet';
