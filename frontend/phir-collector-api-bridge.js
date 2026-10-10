@@ -50,6 +50,8 @@
       }
       const requestSummary = areas.requestSummary || {};
       summary.textContent = `${requestSummary.open || 0} open requests · ${requestSummary.total || 0} total recorded · ${requestSummary.accepted || 0} accepted · ${requestSummary.collected || 0} collected`;
+      const caption = map.querySelector('.delhi-map-caption');
+      if (caption) caption.textContent = 'LIVE COLLECTION OPPORTUNITIES · Pins show current open requests from the recovery database';
     }
     revealCollector();
   }
