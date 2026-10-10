@@ -18,17 +18,36 @@
   const districtId = name => name.toLowerCase().replaceAll(' ', '-');
   function installLiveMap(areas) {
     const mapShell = document.querySelector('.phir-delhi-map');
+    if (!window.__phirSelectableMapGuard) {
+      const replaceWith = Element.prototype.replaceWith;
+      Element.prototype.replaceWith = function(...nodes) {
+        if (this.classList?.contains('live-delhi-map-frame') && nodes[0]?.tagName === 'IMG') return;
+        return replaceWith.apply(this, nodes);
+      };
+      window.__phirSelectableMapGuard = true;
+    }
+    let frame = mapShell?.querySelector('iframe');
+    const isSelectable = frame?.src.includes('delhi-map-selectable.html');
     const image = mapShell?.querySelector('.live-delhi-map-image');
-    if (image) {
+    if (image || (frame && !isSelectable)) {
+      const oldMap = image || frame;
+      frame = document.createElement('iframe');
+      frame.title = 'Selectable Delhi district collection map';
+      frame.src = 'map/delhi-map-selectable.html';
+      frame.className = 'live-delhi-map-frame';
+      oldMap.replaceWith(frame);
+      frame.addEventListener('load', () => installLiveMap(areas), {once: true});
+      return;
+    }
+    if (!frame) {
       const frame = document.createElement('iframe');
       frame.title = 'Selectable Delhi district collection map';
       frame.src = 'map/delhi-map-selectable.html';
       frame.className = 'live-delhi-map-frame';
-      image.replaceWith(frame);
       frame.addEventListener('load', () => installLiveMap(areas), {once: true});
+      mapShell?.prepend(frame);
       return;
     }
-    const frame = mapShell?.querySelector('iframe');
     if (!frame?.contentWindow?.DelhiMap) return;
     const map = frame.contentWindow.DelhiMap;
     if (!frame.dataset.phirBound) {
