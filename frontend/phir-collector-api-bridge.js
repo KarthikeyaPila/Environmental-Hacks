@@ -3,6 +3,7 @@
   const API_BASE = window.PHIR_API_BASE || '';
   const collectorId = 'kabadiwala_1';
   const areaIds = {};
+  let selectedMapArea = null;
   const slug = name => `area_${name.toLowerCase().replaceAll(' ', '_')}`;
   const api = async (path, options = {}) => {
     const response = await fetch(`${API_BASE}${path}`, {headers: {'Content-Type': 'application/json', ...(options.headers || {})}, ...options});
@@ -79,7 +80,8 @@
       frame.contentDocument.addEventListener('district-select', event => {
         const selected = event.detail;
         const match = selected && areas.areas.find(item => districtId(item.name) === selected.id);
-        if (match && area !== match.name) {
+        if (match) {
+          selectedMapArea = match.name;
           area = match.name;
           refreshCollector().catch(error => toast(error.message));
         }
@@ -110,7 +112,14 @@
     state.lots = inventory.inventory.map(item => ({id: `inventory:${item.materialType}`, type: item.materialType, quantityKg: Number(item.quantityKg), status: 'collected', partner: 'Your collection inventory', area}));
     render();
     ensureLocalitySummary();
-    const locality = areas.areas.find(item => item.name === area) || {name: area, requestCount: 0, materialKg: 0, estimatedValueInr: 0, materialBreakdown: {}};
+    const selectedLocality = areas.areas.find(item => item.name === selectedMapArea);
+    const locality = selectedLocality || areas.areas.reduce((total, item) => {
+      total.requestCount += Number(item.requestCount || 0);
+      total.materialKg += Number(item.materialKg || 0);
+      total.estimatedValueInr += Number(item.estimatedValueInr || 0);
+      Object.entries(item.materialBreakdown || {}).forEach(([type, value]) => { total.materialBreakdown[type] = (total.materialBreakdown[type] || 0) + Number(value || 0); });
+      return total;
+    }, {name: 'Delhi', requestCount: 0, materialKg: 0, estimatedValueInr: 0, materialBreakdown: {}});
     const paintLocalitySummary = () => {
       document.querySelectorAll('.note').forEach(note => {
         if (note.textContent.includes('illustrated locality preview') || note.textContent.includes('Density labels')) note.remove();
@@ -121,7 +130,7 @@
       let summary = localityPanel.querySelector('.collector-locality-summary');
       if (!summary) { summary = document.createElement('div'); summary.className = 'collector-locality-summary'; localityPanel.prepend(summary); }
       const materials = Object.entries(locality.materialBreakdown || {}).map(([type, value]) => `${type.replaceAll('_', ' ')} ${Number(value).toFixed(1)} kg`).join(' · ') || 'No material recorded yet';
-      summary.innerHTML = `<h3>${locality.name}</h3><p>Selected locality overview</p><div class="collector-locality-summary-grid"><div class="collector-locality-stat"><strong>${locality.requestCount || 0}</strong><span>household requests</span></div><div class="collector-locality-stat"><strong>${Number(locality.materialKg || 0).toFixed(1)} kg</strong><span>material available</span></div><div class="collector-locality-stat"><strong>₹${locality.estimatedValueInr || 0}</strong><span>estimated value</span></div><div class="collector-locality-stat"><strong>${materials}</strong><span>material mix</span></div></div>`;
+      summary.innerHTML = `<h3>${locality.name}</h3><p>${selectedLocality ? 'Selected locality overview' : 'Delhi-wide recovery overview'}</p><div class="collector-locality-summary-grid"><div class="collector-locality-stat"><strong>${locality.requestCount || 0}</strong><span>household requests</span></div><div class="collector-locality-stat"><strong>${Number(locality.materialKg || 0).toFixed(1)} kg</strong><span>material available</span></div><div class="collector-locality-stat"><strong>₹${locality.estimatedValueInr || 0}</strong><span>estimated value</span></div><div class="collector-locality-stat"><strong>${materials}</strong><span>material mix</span></div></div>`;
     };
     paintLocalitySummary();
     [0, 100, 500].forEach(delay => setTimeout(paintLocalitySummary, delay));
