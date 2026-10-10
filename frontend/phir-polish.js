@@ -8,6 +8,8 @@
     .photo-result{margin:18px 0;padding:16px 18px;border:1px solid #007e6544;border-left:3px solid #007e65;background:#e7f5ed;display:grid;gap:4px}
     .photo-result strong{font-size:20px;color:#24216b}
     .photo-result p{font-size:12px;color:#4e4b77}
+    .modal-intro{font-size:13px;color:#4e4b77;margin:0 0 22px}
+    .modal-choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     .confirm-material{display:flex;gap:10px;align-items:flex-start;margin:16px 0;font-size:13px;color:#24216b}
     .phir-live-status.busy:before{background:#d08b18;box-shadow:0 0 0 4px #d08b1820;animation:phir-pulse 1s infinite}
     @keyframes phir-pulse{50%{opacity:.35}}

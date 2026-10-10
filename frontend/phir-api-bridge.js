@@ -21,7 +21,7 @@
   const localRequest = item => item && ({id: item.id, status: item.status, quantityKg: Object.values(item.quantityByType || {}).reduce((sum, value) => sum + Number(value), 0), quantityByType: item.quantityByType || {}, materialIds: [], area: item.region || 'Delhi', region: item.region || 'Delhi', regionId: item.regionId, assignedKabadiwalaId: item.assignedKabadiwalaId});
   function polishHouseholdLayout() {
     if (view !== 'household') return;
-    return;
+    document.querySelector('.workspace[data-theme="household"] .two-col aside [data-action="photo-material"]')?.remove();
     const manual = document.querySelector('.workspace .dashboard-identify [data-action="add-material"]');
     if (manual) manual.textContent = 'Add materials manually';
     document.querySelectorAll('.workspace .metric-label').forEach(label => {
@@ -60,7 +60,13 @@
     const button = event.target.closest('[data-action]');
     if (!button || view !== 'household') return;
     const action = button.dataset.action;
-    if (action === 'photo-material') {
+    if (action === 'add-material') {
+      event.preventDefault(); event.stopImmediatePropagation();
+      openModal('Add material', `<p class="modal-intro">Choose how you want to record your recyclable material.</p><div class="modal-choice-grid"><button class="btn" type="button" data-action="add-material-manual">Add manually</button><button class="btn secondary" type="button" data-action="photo-material">Identify from a photo</button></div>`);
+    } else if (action === 'add-material-manual') {
+      event.preventDefault(); event.stopImmediatePropagation();
+      materialForm();
+    } else if (action === 'photo-material') {
       // The explicit submit action is the confirmation; the extra checkbox
       // adds friction and can block the form through native required-field
       // validation. Remove it after the modal is opened by the main UI.
