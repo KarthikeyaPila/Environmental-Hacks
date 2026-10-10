@@ -17,15 +17,16 @@
   const revealCollector = () => setTimeout(() => document.documentElement.classList.remove('collector-pending'), 0);
   const districtId = name => name.toLowerCase().replaceAll(' ', '-');
   const selectableMapUrl = 'map/delhi-map-selectable.html';
-  if (!window.__phirSelectableMapGuard) {
-    const replaceWith = Element.prototype.replaceWith;
-    Element.prototype.replaceWith = function(...nodes) {
-      if (this.classList?.contains('live-delhi-map-frame') && nodes[0]?.tagName === 'IMG') return;
-      return replaceWith.apply(this, nodes);
-    };
-    window.__phirSelectableMapGuard = true;
-  }
   function mountSelectableMap() {
+    document.querySelectorAll('.workspace .map:not(.phir-delhi-map)').forEach(mapShell => {
+      mapShell.classList.add('phir-delhi-map');
+      const next = document.createElement('iframe');
+      next.title = 'Selectable Delhi district collection map';
+      next.src = selectableMapUrl;
+      next.className = 'live-delhi-map-frame';
+      next.addEventListener('load', () => window.__phirCollectorAreas && installLiveMap(window.__phirCollectorAreas), {once: true});
+      mapShell.replaceChildren(next);
+    });
     document.querySelectorAll('.workspace .phir-delhi-map').forEach(mapShell => {
       const frame = mapShell.querySelector('iframe');
       if (frame?.src.includes('delhi-map-selectable.html')) return;
@@ -43,19 +44,10 @@
   mountSelectableMap();
   function installLiveMap(areas) {
     const mapShell = document.querySelector('.phir-delhi-map');
-    if (!window.__phirSelectableMapGuard) {
-      const replaceWith = Element.prototype.replaceWith;
-      Element.prototype.replaceWith = function(...nodes) {
-        if (this.classList?.contains('live-delhi-map-frame') && nodes[0]?.tagName === 'IMG') return;
-        return replaceWith.apply(this, nodes);
-      };
-      window.__phirSelectableMapGuard = true;
-    }
     let frame = mapShell?.querySelector('iframe');
     const isSelectable = frame?.src.includes('delhi-map-selectable.html');
-    const image = mapShell?.querySelector('.live-delhi-map-image');
-    if (image || (frame && !isSelectable)) {
-      const oldMap = image || frame;
+    if (frame && !isSelectable) {
+      const oldMap = frame;
       frame = document.createElement('iframe');
       frame.title = 'Selectable Delhi district collection map';
       frame.src = selectableMapUrl;
