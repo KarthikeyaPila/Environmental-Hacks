@@ -78,23 +78,7 @@
         }
       });
     }
-    map.pins.replaceChildren();
-    if (!frame.contentDocument.getElementById('phir-live-pin-style')) {
-      const style = frame.contentDocument.createElement('style');
-      style.id = 'phir-live-pin-style';
-      style.textContent = '.live-request-pin{pointer-events:none}.live-request-pin circle{fill:#c91f3d;stroke:#fff;stroke-width:2.5}.live-request-pin.selected circle{fill:#008c78}.live-request-pin text{fill:#fff;font:700 13px system-ui,sans-serif;text-anchor:middle;dominant-baseline:middle}';
-      frame.contentDocument.head.append(style);
-    }
-    areas.areas.filter(item => item.requestCount > 0).forEach(item => {
-      const district = frame.contentDocument.querySelector(`[data-district="${item.name}"]`);
-      const cx = Number(district?.dataset.cx || 0), cy = Number(district?.dataset.cy || 0);
-      if (!cx || !cy) return;
-      const group = frame.contentDocument.createElementNS('http://www.w3.org/2000/svg', 'g');
-      group.setAttribute('transform', `translate(${cx} ${cy})`);
-      group.setAttribute('class', `live-request-pin ${area === item.name ? 'selected' : ''}`);
-      group.innerHTML = `<circle r="17"/><text y="4">${item.requestCount}</text>`;
-      map.pins.append(group);
-    });
+    frame.contentWindow.DelhiMap.pins.replaceChildren();
   }
   async function refreshCollector() {
     const [areas, inventory, requests, metrics, profile] = await Promise.all([
