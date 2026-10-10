@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Delhi Map</title>
 <style>
-html,body{margin:0;background:transparent}
-#delhi-map{display:block;width:100%;height:auto}
+html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden}
+#delhi-map{display:block;width:100%;height:100%;object-fit:contain}
 #delhi-map .district{cursor:pointer;outline:none;transition:fill .2s,stroke .2s,stroke-width .2s}
 #delhi-map .district:hover,#delhi-map .district:focus-visible{fill:#b9cfa9;stroke:#2f5d42;stroke-width:2}
 #delhi-map .district.selected{fill:#2f5d42;stroke:#1f3a2b;stroke-width:2.2}

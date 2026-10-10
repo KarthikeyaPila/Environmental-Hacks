@@ -65,7 +65,7 @@
     if (!frame.contentDocument.getElementById('phir-live-pin-style')) {
       const style = frame.contentDocument.createElement('style');
       style.id = 'phir-live-pin-style';
-      style.textContent = '.live-request-pin{pointer-events:none}.live-request-pin circle{fill:#c91f3d;stroke:#fff;stroke-width:2}.live-request-pin.selected circle{fill:#008c78}.live-request-pin text{fill:#fff;font:600 12px system-ui,sans-serif;text-anchor:middle}';
+      style.textContent = '.live-request-pin{pointer-events:none}.live-request-pin circle{fill:#c91f3d;stroke:#fff;stroke-width:2.5}.live-request-pin.selected circle{fill:#008c78}.live-request-pin text{fill:#fff;font:700 13px system-ui,sans-serif;text-anchor:middle;dominant-baseline:middle}';
       frame.contentDocument.head.append(style);
     }
     areas.areas.filter(item => item.requestCount > 0).forEach(item => {
