@@ -55,8 +55,9 @@ The core local and deployed recovery workflow is implemented.
 - See resolved Delhi region on the request
 - See request status
 - Optional image-assisted entry
-- S3/Rekognition path when configured
-- Deterministic filename-based mock fallback locally
+- Live S3/Rekognition Custom Labels path is configured in deployment
+- Selecting a photo immediately runs recognition and displays material/confidence
+- Manual confirmation remains available when confidence is low or recognition fails
 - Backend metrics hydration
 
 ### Kabadiwala
@@ -251,8 +252,25 @@ https://main.d3hgpobebqphe1.amplifyapp.com
 Live API:
 
 ```text
-https://gk8tedtst5.execute-api.ap-south-1.amazonaws.com
+https://jxhlv53d4f.execute-api.ap-south-1.amazonaws.com
 ```
+
+The API uses HTTP API CORS for the Amplify origin and the ML S3 bucket allows
+presigned PUT uploads from the hosted frontend. The Lambda role includes
+`dynamodb:BatchWriteItem`, required by the repository batch writer.
+
+Rekognition model currently configured:
+
+```text
+arn:aws:rekognition:ap-south-1:132218943520:project/environmental-recovery-classifier/version/trashnet-v1/1791474677175
+```
+
+The model version is running and uses the five-label TrashNet baseline:
+`pet`, `cardboard`, `paper`, `aluminium`, and `glass`.
+
+Important request handoff behavior: `/api/kabadiwalas/kabadiwala_1/requests`
+returns all pending requests plus requests already assigned to that kabadiwala.
+Region opportunities remain grouped by the simplified Delhi major-region map.
 
 Deployment files:
 
@@ -296,8 +314,12 @@ https://github.com/KarthikeyaPila/Environmental-Hacks.git
 The latest pushed commits are:
 
 ```text
-1e42907 chore: deploy recovery app to AWS
-0c37c77 feat: connect primary frontend to recovery backend
+1bf09b8 fix: expose pending requests to kabadiwala
+9b9f71e fix: enable browser CORS for image uploads
+a238456 feat: classify household photo on selection
+96919e6 fix: show household image recommendation
+099014d fix: connect household photo recognition in frontend
+2c7dce6 fix: enable material persistence and image classification
 ```
 
 The working tree was clean after the deployment commit.
@@ -308,10 +330,10 @@ push every tiny edit; use coherent milestone commits.
 ## Known limitations / next work
 
 1. The deployed frontend has not had a full interactive browser walkthrough yet.
-2. AWS Rekognition Custom Labels is optional and may remain in mock mode unless a model ARN is configured.
+2. AWS Rekognition Custom Labels is live in the deployed API; keep the model stopped when not actively demoing to control cost.
 3. Authentication is intentionally omitted for the MVP.
 4. The frontend is a 46 MB single HTML file because it embeds visual assets.
-5. Amplify deployment currently publishes the static frontend manually through the Amplify Hosting deployment API.
+5. Amplify deployment currently publishes the static frontend manually through the Amplify Hosting deployment API; the package must contain the root file `index.html` copied from `frontend/phirFinal.html`.
 6. CloudWatch alarms and production observability are not configured beyond basic Lambda/API logging.
 7. The API uses demo identities such as `household_1`, `kabadiwala_1`, and `recycler_1`.
 8. The frontend should eventually replace remaining static descriptive copy with profile API values.
