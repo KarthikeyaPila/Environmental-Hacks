@@ -102,7 +102,11 @@ class DemoHandler(SimpleHTTPRequestHandler):
             if path == "/api/kabadiwalas/kabadiwala_1/inventory":
                 return self._send_json({"inventory": _inventory("kabadiwala_1")})
             if path == "/api/kabadiwalas/kabadiwala_1/requests":
-                requests = [r for r in service.requests.values() if r.assigned_kabadiwala_id == "kabadiwala_1"]
+                requests = [
+                    r for r in service.requests.values()
+                    if r.status == RequestStatus.PENDING
+                    or r.assigned_kabadiwala_id == "kabadiwala_1"
+                ]
                 return self._send_json({"requests": [_request_json(r) for r in requests]})
             if path == "/api/households/household_1/inventory":
                 return self._send_json({"inventory": _household_inventory("household_1")})
