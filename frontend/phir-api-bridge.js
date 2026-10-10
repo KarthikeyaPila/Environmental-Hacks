@@ -21,7 +21,16 @@
   const localRequest = item => item && ({id: item.id, status: item.status, quantityKg: Object.values(item.quantityByType || {}).reduce((sum, value) => sum + Number(value), 0), quantityByType: item.quantityByType || {}, materialIds: [], area: item.region || 'Delhi', region: item.region || 'Delhi', regionId: item.regionId, assignedKabadiwalaId: item.assignedKabadiwalaId});
   function polishHouseholdLayout() {
     if (view !== 'household') return;
-    document.querySelector('.workspace[data-theme="household"] .two-col aside')?.remove();
+    const layout = document.querySelector('.workspace[data-theme="household"] .two-col');
+    const materials = layout?.querySelector(':scope > section');
+    const collection = materials?.querySelector('.collection-section');
+    if (layout && materials && collection && !layout.querySelector('.household-collection-panel')) {
+      const panel = document.createElement('aside');
+      panel.className = 'household-collection-panel';
+      panel.append(collection);
+      layout.append(panel);
+    }
+    layout?.querySelector(':scope > aside:not(.household-collection-panel)')?.remove();
     const manual = document.querySelector('.workspace .dashboard-identify [data-action="add-material"]');
     if (manual) manual.textContent = 'Add materials manually';
     document.querySelectorAll('.workspace .metric-label').forEach(label => {

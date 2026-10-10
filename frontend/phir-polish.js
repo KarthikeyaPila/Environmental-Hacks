@@ -10,6 +10,11 @@
     .photo-result p{font-size:12px;color:#4e4b77}
     .modal-intro{font-size:13px;color:#4e4b77;margin:0 0 22px}
     .modal-choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .workspace[data-theme="household"] .household-collection-panel{padding:22px;border:2px solid var(--primary);border-radius:8px;background:var(--surface);box-shadow:4px 4px 0 color-mix(in srgb,var(--secondary) 65%,transparent);align-self:start}
+    .workspace[data-theme="household"] .household-collection-panel .collection-section{border-top:0;padding-top:0;margin-top:0}
+    .workspace[data-theme="household"] .household-collection-panel .section-heading h2{font-size:24px}
+    .workspace[data-theme="household"] .household-collection-panel .steps{display:block;margin:20px 0}
+    .workspace[data-theme="household"] .household-collection-panel .step{margin-bottom:10px}
     .confirm-material{display:flex;gap:10px;align-items:flex-start;margin:16px 0;font-size:13px;color:#24216b}
     .phir-live-status.busy:before{background:#d08b18;box-shadow:0 0 0 4px #d08b1820;animation:phir-pulse 1s infinite}
     @keyframes phir-pulse{50%{opacity:.35}}
