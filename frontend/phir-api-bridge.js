@@ -23,7 +23,10 @@
     const [inventory, request, metrics] = await Promise.all([api(`/api/households/${householdId}/inventory`), api(`/api/households/${householdId}/collection-request`), api(`/api/households/${householdId}/metrics`)]);
     state.materials = inventory.inventory.map(localMaterial);
     state.requests = request.request ? [localRequest(request.request)] : [];
-    render();
+    // A background refresh must not tear down an active modal. In particular,
+    // selecting a photo can outlive the initial household refresh and render()
+    // would otherwise close the dialog while recognition is in progress.
+    if (!modal.open) render();
     window.phirPaintMetrics?.([`${metrics.totalRecordedKg} kg`, `${metrics.totalCollectedKg} kg`, `₹${metrics.estimatedValueInr}`, `${metrics.collectionsCompleted}`]);
     const region = request.request?.region;
     const heading = document.querySelector('.collection-section .section-heading');
