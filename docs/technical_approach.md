@@ -123,8 +123,7 @@ Suggested fields:
 Suggested fields:
 - `kabadiwala_id`
 - name/profile
-- service location
-- service radius
+- service localities
 - supported material types
 - collection capacity
 - current inventory summary
@@ -307,15 +306,15 @@ It displays:
 - material types available
 - approximate quantities/value
 - request status
-- kabadiwala service area/radius
+- selected Delhi locality
 
-### Radius concept
+### Locality concept
 
-The map can show a circular region around a kabadiwala representing a configurable collection radius, e.g. 1 km.
+The map groups opportunities into the frontend's 11 major Delhi regions: North, North West, West, South West, Central, New Delhi, North East, Shahdara, East, South East, and South.
 
-Within that area, the system can calculate/display an aggregate opportunity such as:
+Within a selected locality, the system can calculate/display an aggregate opportunity such as:
 
-> **Within 1 km**
+> **Lajpat Nagar**
 > 12 requests
 > 31 kg recyclable material
 > ₹420 estimated recovery value
@@ -330,7 +329,7 @@ This keeps the project focused on **decision support and collection visibility**
 
 The system can filter or rank visible requests using deterministic rules such as:
 
-- within service radius
+- in the selected locality
 - supported material types
 - request quantity/value
 - request priority/status

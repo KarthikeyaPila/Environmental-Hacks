@@ -17,20 +17,17 @@ class DelhiArea:
 
 
 DELHI_AREAS = (
-    DelhiArea("area_rohini", "Rohini", 28.7495, 77.0565),
-    DelhiArea("area_pitampura", "Pitampura", 28.7033, 77.1322),
-    DelhiArea("area_model_town", "Model Town", 28.7177, 77.1931),
-    DelhiArea("area_civil_lines", "Civil Lines", 28.6773, 77.2250),
-    DelhiArea("area_karol_bagh", "Karol Bagh", 28.6514, 77.1907),
-    DelhiArea("area_connaught_place", "Connaught Place", 28.6315, 77.2167),
-    DelhiArea("area_lajpat_nagar", "Lajpat Nagar", 28.5677, 77.2433),
-    DelhiArea("area_hauz_khas", "Hauz Khas", 28.5494, 77.2001),
-    DelhiArea("area_saket", "Saket", 28.5244, 77.2066),
-    DelhiArea("area_dwarka", "Dwarka", 28.5921, 77.0460),
-    DelhiArea("area_janakpuri", "Janakpuri", 28.6219, 77.0878),
-    DelhiArea("area_mayur_vihar", "Mayur Vihar", 28.6047, 77.2924),
-    DelhiArea("area_shahdara", "Shahdara", 28.6735, 77.2890),
-    DelhiArea("area_okhla", "Okhla", 28.5355, 77.2750),
+    DelhiArea("area_north", "North", 28.7500, 77.2000),
+    DelhiArea("area_north_west", "North West", 28.7200, 77.1000),
+    DelhiArea("area_west", "West", 28.6600, 77.1000),
+    DelhiArea("area_south_west", "South West", 28.5900, 77.0500),
+    DelhiArea("area_central", "Central", 28.6600, 77.2200),
+    DelhiArea("area_new_delhi", "New Delhi", 28.6100, 77.2100),
+    DelhiArea("area_north_east", "North East", 28.7000, 77.2800),
+    DelhiArea("area_shahdara", "Shahdara", 28.6700, 77.2900),
+    DelhiArea("area_east", "East", 28.6300, 77.2900),
+    DelhiArea("area_south_east", "South East", 28.5500, 77.2800),
+    DelhiArea("area_south", "South", 28.5200, 77.2000),
 )
 
 

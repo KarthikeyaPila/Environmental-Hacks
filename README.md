@@ -14,8 +14,8 @@ existing kabadiwala recovery network and continue toward recycling companies.
 └── README.md
 ```
 
-The future frontend should live in `frontend/` and consume a stable API
-contract. Keep shared business rules in `src/`; do not duplicate pricing,
+The primary frontend is `frontend/phirFinal.html` and consumes the stable API
+contract through the adjacent bridge scripts. Keep shared business rules in `src/`; do not duplicate pricing,
 workflow transitions, inventory, or matching logic in the frontend.
 
 ## Current backend scope
@@ -54,6 +54,10 @@ Run the temporary demo website:
 
 Then open `http://localhost:8080`. Set a different port with
 `PORT=3000 ./scripts/run_demo.sh`.
+
+For a separate static frontend host, set `window.PHIR_API_BASE` before the
+bridge scripts load, for example to the deployed API Gateway base URL. Local
+development uses the same-origin default.
 
 Do not commit credentials, local environment files, generated caches, or
 temporary uploaded images. AWS integration should use configuration supplied by

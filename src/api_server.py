@@ -33,7 +33,7 @@ def build_state(with_demo_requests: bool = False) -> tuple[RecoveryService, Area
     service.add_profile(Profile("household_1", Role.HOUSEHOLD, "Household A", 28.7042, 77.1024))
     service.add_profile(Profile("household_2", Role.HOUSEHOLD, "Household B", 28.6450, 77.2165))
     service.add_profile(Profile("household_3", Role.HOUSEHOLD, "Household C", 28.5677, 77.2433))
-    service.add_profile(Profile("household_4", Role.HOUSEHOLD, "Household D", 28.5921, 77.0460))
+    service.add_profile(Profile("household_4", Role.HOUSEHOLD, "Household D", 28.5244, 77.2066))
     service.add_profile(Profile("kabadiwala_1", Role.KABADIWALA, "Ramesh Recovery", 28.6800, 77.1500, 1, {"pet", "cardboard", "paper", "aluminium", "glass", "wood"}, 4.8, 1.08))
     service.add_profile(Profile("recycler_1", Role.RECYCLER, "GreenCycle Delhi", 28.6500, 77.2000))
     first = service.add_material("household_1", "pet", 4)
@@ -84,7 +84,7 @@ class DemoHandler(SimpleHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
@@ -108,7 +108,12 @@ class DemoHandler(SimpleHTTPRequestHandler):
                 return self._send_json({"inventory": _household_inventory("household_1")})
             if path == "/api/households/household_1/collection-request":
                 request = next((r for r in service.requests.values() if r.household_id == "household_1"), None)
-                return self._send_json({"request": _request_json(request) if request else None})
+                request_data = _request_json(request) if request else None
+                if request_data:
+                    region = area_service.area_for(request.latitude, request.longitude)
+                    request_data["region"] = region.name
+                    request_data["regionId"] = region.id
+                return self._send_json({"request": request_data})
             if path == "/api/recyclers/recycler_1/available-material":
                 return self._send_json({"availableMaterial": [_available_json(item) for item in service.available_material("recycler_1")]})
             if path == "/api/recyclers/recycler_1/requirements":
@@ -174,12 +179,23 @@ class DemoHandler(SimpleHTTPRequestHandler):
             if path.startswith("/api/collection-requests/") and path.endswith("/accept"):
                 request = service.accept_request(payload["kabadiwalaId"], path.split("/")[-2])
                 return self._send_json(_request_json(request))
+            if path.startswith("/api/collection-requests/") and path.endswith("/reject"):
+                request = service.reject_request(payload["kabadiwalaId"], path.split("/")[-2])
+                return self._send_json(_request_json(request))
             if path.startswith("/api/collection-requests/") and path.endswith("/collect"):
                 request = service.collect_request(payload["kabadiwalaId"], path.split("/")[-2])
                 return self._send_json(_request_json(request))
             if path == "/api/recycler-requirements":
                 requirement = service.create_requirement(payload["recyclerId"], payload["materialType"], float(payload["requiredQuantityKg"]))
                 return self._send_json(_requirement_json(requirement), 201)
+            if path == "/api/recyclers/recycler_1/profile":
+                profile = service.profiles.get(payload["recyclerId"])
+                if not profile or profile.role != Role.RECYCLER:
+                    raise ValueError("recycler profile not found")
+                profile.name = str(payload.get("name", profile.name)).strip() or profile.name
+                profile.locality = str(payload.get("locality", getattr(profile, "locality", "Delhi"))).strip() or "Delhi"
+                profile.contact = str(payload.get("contact", getattr(profile, "contact", ""))).strip()
+                return self._send_json({"id": profile.id, "role": profile.role.value, "name": profile.name, "locality": profile.locality, "contact": profile.contact})
             if path == "/api/bookings":
                 booking = service.book_material(payload["recyclerId"], payload["requirementId"], payload["kabadiwalaId"], float(payload["quantityKg"]))
                 return self._send_json(_booking_json(booking), 201)
@@ -246,7 +262,9 @@ def _booking_json(booking) -> dict:
 
 
 def _available_json(item) -> dict:
-    return {"kabadiwalaId": item["kabadiwala_id"], "materialType": item["material_type"], "quantityKg": item["quantity_kg"]}
+    holder = service.profiles.get(item["kabadiwala_id"])
+    region = area_service.area_for(holder.latitude, holder.longitude) if holder else None
+    return {"kabadiwalaId": item["kabadiwala_id"], "kabadiwalaName": holder.name if holder else item["kabadiwala_id"], "region": region.name if region else "Delhi", "regionId": region.id if region else None, "materialType": item["material_type"], "quantityKg": item["quantity_kg"]}
 
 
 def _inventory(holder_id: str) -> list[dict]:

@@ -65,6 +65,8 @@ class Profile:
     supported_materials: set[str] = field(default_factory=set)
     demo_rating: float = 0.0
     payout_index: float = 1.0
+    locality: str = "Delhi"
+    contact: str = ""
 
 
 @dataclass
@@ -350,9 +352,9 @@ class RecoveryService:
         profile = self.profiles.get(profile_id)
         if not profile:
             raise ValueError("profile not found")
-        summary = {"id": profile.id, "role": profile.role.value, "name": profile.name}
+        summary = {"id": profile.id, "role": profile.role.value, "name": profile.name, "locality": profile.locality, "contact": profile.contact}
         if profile.role == Role.KABADIWALA:
-            summary.update({"demoRating": profile.demo_rating, "payoutIndex": profile.payout_index, "serviceRadiusKm": profile.service_radius_km, "supportedMaterials": sorted(profile.supported_materials)})
+            summary.update({"demoRating": profile.demo_rating, "payoutIndex": profile.payout_index, "supportedMaterials": sorted(profile.supported_materials)})
         return summary
 
     def recycler_metrics(self, recycler_id: str) -> dict:

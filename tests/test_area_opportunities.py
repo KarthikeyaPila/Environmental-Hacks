@@ -12,10 +12,10 @@ class AreaOpportunityTests(unittest.TestCase):
             latitude=28.6515, longitude=77.1908,
         )
         summaries = AreaOpportunityService().summaries([request])
-        karol_bagh = next(summary for summary in summaries if summary["areaId"] == "area_karol_bagh")
-        self.assertEqual(karol_bagh["requestCount"], 1)
-        self.assertEqual(karol_bagh["materialKg"], 6)
-        self.assertEqual(karol_bagh["estimatedValueInr"], 124)
+        central = next(summary for summary in summaries if summary["areaId"] == "area_central")
+        self.assertEqual(central["requestCount"], 1)
+        self.assertEqual(central["materialKg"], 6)
+        self.assertEqual(central["estimatedValueInr"], 124)
 
     def test_non_pending_requests_are_not_opportunities(self):
         request = CollectionRequest(
@@ -25,7 +25,7 @@ class AreaOpportunityTests(unittest.TestCase):
         )
         service = AreaOpportunityService()
         self.assertEqual(sum(s["requestCount"] for s in service.summaries([request])), 0)
-        self.assertEqual(service.opportunities("area_karol_bagh", [request]), [])
+        self.assertEqual(service.opportunities("area_central", [request]), [])
 
 
 if __name__ == "__main__":

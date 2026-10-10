@@ -111,8 +111,8 @@ Returns Delhi area summaries visible to the kabadiwala.
 {
   "areas": [
     {
-      "areaId": "area_north_delhi",
-      "name": "North Delhi",
+      "areaId": "area_north",
+      "name": "North",
       "requestCount": 12,
       "materialKg": 31.0,
       "estimatedValueInr": 1840,
@@ -206,10 +206,24 @@ Transfers ownership to the recycler and updates requirement fulfillment.
 
 ### `GET /api/kabadiwalas/{kabadiwalaId}/profile`
 
-Returns the collector's seeded demo profile indicators, service radius, and
-supported materials. `demoRating` and `payoutIndex` are demonstration values,
+Returns the collector's seeded demo profile indicators and supported materials.
+`demoRating` and `payoutIndex` are demonstration values,
 not user-generated reputation scores.
 ### `GET /api/recyclers/{recyclerId}/metrics`
+
+### `POST /api/recyclers/{recyclerId}/profile`
+
+Updates the demo recycler company profile. Authentication is intentionally
+omitted for the MVP.
+
+```json
+{
+  "recyclerId": "recycler_1",
+  "name": "GreenCycle Delhi",
+  "locality": "Okhla, Delhi",
+  "contact": "materials@example.in"
+}
+```
 
 Metrics are derived only from stored records. No unsupported carbon or
 tree-equivalent claims are returned.

@@ -114,7 +114,7 @@ class DynamoRecoveryRepository:
         for item in items:
             kind = item.get("sk")
             if kind == "PROFILE":
-                service.profiles[item["id"]] = Profile(item["id"], Role(item["role"]), item["name"], float(item["latitude"]), float(item["longitude"]), float(item.get("service_radius_km", 0)), set(item.get("supported_materials", [])), float(item.get("demo_rating", 0)), float(item.get("payout_index", 1)))
+                service.profiles[item["id"]] = Profile(item["id"], Role(item["role"]), item["name"], float(item["latitude"]), float(item["longitude"]), float(item.get("service_radius_km", 0)), set(item.get("supported_materials", [])), float(item.get("demo_rating", 0)), float(item.get("payout_index", 1)), item.get("locality", "Delhi"), item.get("contact", ""))
             elif kind == "MATERIAL":
                 service.materials[item["id"]] = MaterialRecord(item["id"], item["material_type"], float(item["quantity_kg"]), float(item["estimated_value"]), item["source_id"], item["current_holder_id"], item.get("status", "available"), item.get("destination_id"), item["created_at"], item["updated_at"])
             elif kind == "REQUEST":

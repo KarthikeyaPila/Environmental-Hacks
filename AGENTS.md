@@ -41,8 +41,8 @@ The project must remain a **focused hackathon POC**, not a production waste-mana
 - Map of nearby household recovery requests.
 - Request details: material, quantity, estimated value/revenue, location, status.
 - Accept/reject.
-- Configurable collection radius / service area.
-- Aggregate opportunity within a radius (e.g. total kg/value).
+- Region-based collection view using the frontend's major Delhi localities.
+- Aggregate opportunity within a selected locality (e.g. total kg/value).
 - Kabadiwala inventory after collection.
 - Recycler requirements/demand view.
 - Basic collection, revenue and impact dashboard.
@@ -100,7 +100,7 @@ Use a small serverless stack:
 - **Amazon DynamoDB** — application data
 - **Amazon S3** — temporary image uploads
 - **Amazon Rekognition Custom Labels** — proof-of-concept waste material detection
-- **Amazon Location Service** — map, coordinates, radius/proximity visualization
+- **Amazon Location Service** — map and approximate locality visualization
 - **Amazon CloudWatch** — basic logs/diagnostics only
 
 Do not introduce additional AWS services without a real implementation requirement.
@@ -171,13 +171,12 @@ Do not build a permanent photo archive.
 
 Use Amazon Location Service only for:
 - displaying locations
-- calculating basic proximity/distance where needed
-- showing a collector's service radius
-- summarizing nearby recovery opportunity
+- displaying approximate locality information
+- summarizing recovery opportunity within a selected Delhi locality
 
 Example:
 
-> Within 1 km: 12 requests · 31 kg · ₹184 estimated value
+> Lajpat Nagar: 12 requests · 31 kg · ₹184 estimated value
 
 **Do not implement full route optimization.**
 The kabadiwala decides which requests to visit and how to travel.
@@ -194,7 +193,7 @@ Keep business logic server-side when it affects shared state or calculations:
 - inventory updates
 - recycler-demand matching/filtering
 - contribution totals
-- radius aggregation
+- locality aggregation
 
 Use DynamoDB consistently rather than introducing a relational database unless the existing implementation proves it necessary.
 
@@ -368,7 +367,7 @@ When time is limited, implement in this order:
 - Recycler requirements
 - Kabadiwala ↔ recycler material visibility
 - Household contribution dashboard
-- Radius aggregation
+- Locality aggregation
 
 **P2 — only after the core flow works**
 - Rekognition Custom Labels integration
