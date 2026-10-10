@@ -71,6 +71,13 @@
         const detection = result.detections?.[0];
         if (!detection) throw new Error('No recyclable material was detected.');
         const materialType = detection.materialType === 'other' ? data.get('type') : detection.materialType;
+        const materialSelect = form.querySelector('#material-type');
+        if (materialSelect && [...materialSelect.options].some(option => option.value === materialType)) materialSelect.value = materialType;
+        const recommendation = form.querySelector('#form-error');
+        if (recommendation) {
+          recommendation.className = 'note';
+          recommendation.textContent = `Recommended: ${materialType} (${Math.round(Number(detection.confidence || 0) * 100)}% confidence).`;
+        }
         await api('/api/materials', {method: 'POST', body: JSON.stringify({userId: householdId, materialType, quantityKg: Number(data.get('weight'))})});
       }, 'Material identified and saved.');
       return;
