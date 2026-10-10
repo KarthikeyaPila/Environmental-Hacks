@@ -25,6 +25,29 @@
     style.textContent = '.dashboard-region-layout{align-items:start}.dashboard-region-layout>.collector-locality-summary{grid-column:2;grid-row:1;margin:0 0 20px;padding:22px 24px;border:2px solid var(--teal,#008b78);border-radius:18px;background:rgba(255,250,232,.9);box-shadow:4px 4px 0 var(--yellow,#ffd83d)}.dashboard-region-layout>.metrics{grid-column:1/-1;grid-row:2;display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:16px!important;align-items:stretch}.dashboard-region-layout>.metrics>*{width:auto!important;min-width:0!important;margin:0!important}.collector-locality-summary h3{margin:0 0 5px;color:var(--red,#cf1f3d)}.collector-locality-summary p{margin:0 0 16px}.collector-locality-summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.collector-locality-stat{padding:12px 14px;border:1px solid rgba(0,75,110,.25);border-radius:10px;background:rgba(255,255,255,.32)}.collector-locality-stat strong{display:block;font-size:1.2rem;color:var(--teal,#008b78);line-height:1.2}.collector-locality-stat span{font-size:.78rem}.collector-locality-stat:nth-child(3),.collector-locality-stat.mix{grid-column:1/-1}.collector-locality-stat.mix strong{font-size:1rem;line-height:1.35}.map-layout .note{display:none!important}@media(max-width:900px){.dashboard-region-layout>.collector-locality-summary{grid-column:1;grid-row:auto}.dashboard-region-layout>.metrics{grid-column:1;grid-row:auto;grid-template-columns:repeat(2,minmax(0,1fr))!important}}@media(max-width:800px){.collector-locality-summary-grid{grid-template-columns:1fr 1fr}}';
     document.head.appendChild(style);
   }
+  const materialLabel = value => String(value || '').replaceAll('_', ' ').replace(/\b\w/g, letter => letter.toUpperCase());
+  function hydrateCollectorProfile(profile) {
+    const card = document.querySelector('.partner-profile-card');
+    if (!card || !profile) return;
+    const badge = card.querySelector('.partner-profile-identity .badge');
+    const identity = card.querySelector('.partner-profile-identity');
+    const sections = card.querySelectorAll('.partner-profile-details section');
+    const note = card.querySelector('.partner-profile-note');
+    const name = profile.name || 'Collection partner';
+    if (badge) badge.textContent = 'Live profile';
+    if (identity?.querySelector('h2')) identity.querySelector('h2').textContent = name;
+    if (identity?.querySelector('p')) identity.querySelector('p').textContent = `Kabadiwala / Aggregator · ${profile.locality || 'Delhi'}`;
+    if (sections[0]) {
+      sections[0].querySelector('h3').textContent = 'Primary locality';
+      sections[0].querySelector('.partner-profile-chips').innerHTML = `<span>${profile.locality || 'Delhi'}</span>`;
+      sections[0].querySelector('p').textContent = 'Current locality in the recovery network.';
+    }
+    if (sections[1]) {
+      sections[1].querySelector('.partner-profile-chips').innerHTML = (profile.supportedMaterials || []).map(material => `<span>${materialLabel(material)}</span>`).join('');
+      sections[1].querySelector('p').textContent = 'Materials currently accepted by this partner.';
+    }
+    if (note) note.textContent = 'Collection and transfer are recorded handovers. Actual recycling needs downstream evidence.';
+  }
   function mountSelectableMap() {
     document.querySelectorAll('.workspace .map:not(.phir-delhi-map)').forEach(mapShell => {
       mapShell.classList.add('phir-delhi-map');
@@ -141,6 +164,7 @@
     [0, 100, 500].forEach(delay => setTimeout(paintLocalitySummary, delay));
     window.phirPaintMetrics?.([`${metrics.requestsAccepted}`, `${metrics.totalCollectedKg} kg`, `₹${metrics.estimatedRevenueInr}`, `${metrics.collectionsCompleted}`]);
     window.phirCollectorProfile = profile;
+    [0, 100, 500].forEach(delay => setTimeout(() => hydrateCollectorProfile(profile), delay));
     const map = document.querySelector('.map');
     if (map) {
       let summary = map.parentElement?.querySelector('.collector-map-summary');
