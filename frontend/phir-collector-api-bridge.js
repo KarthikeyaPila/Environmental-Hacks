@@ -23,7 +23,10 @@
       api(`/api/kabadiwalas/${collectorId}/profile`),
     ]);
     areas.areas.forEach(item => { areaIds[item.name] = item.areaId || slug(item.name); });
-    if (!areaIds[area]) area = areas.areas[0]?.name || area;
+    // Start the collection map on a locality with a real opportunity when
+    // entering the role. Previously the household's default locality could
+    // leave the map on an empty area while requests existed elsewhere.
+    if (!areaIds[area]) area = areas.areas.find(item => item.requestCount > 0)?.name || areas.areas[0]?.name || area;
     const selected = areas.areas.find(item => item.name === area);
     const opportunities = selected ? await api(`/api/kabadiwalas/${collectorId}/areas/${selected.areaId}/opportunities`) : {opportunities: []};
     const all = requests.requests.map(item => ({id: item.id, status: item.status, area: item.region || area, region: item.region || area, regionId: item.regionId, materialIds: [], quantityByType: item.quantityByType || {}, quantityKg: Object.values(item.quantityByType || {}).reduce((sum, value) => sum + Number(value), 0), estimatedValue: item.estimatedValueInr}));
