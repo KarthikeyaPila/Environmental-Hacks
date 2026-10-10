@@ -50,6 +50,30 @@
       run(() => api(`/api/materials/${button.dataset.id}`, {method: 'DELETE'}), 'Material removed.');
     }
   }, true);
+  document.addEventListener('change', event => {
+    if (event.target.id !== 'material-photo' || view !== 'household') return;
+    const file = event.target.files?.[0], form = event.target.closest('form');
+    if (!file || !form) return;
+    (async () => {
+      const message = form.querySelector('#form-error');
+      try {
+        if (message) { message.className = 'note'; message.textContent = 'Analyzing photo with the AWS model…'; }
+        const upload = await api('/api/image-upload', {method: 'POST', body: JSON.stringify({filename: file.name, contentType: file.type})});
+        const uploaded = await fetch(upload.uploadUrl, {method: 'PUT', headers: {'Content-Type': file.type, 'x-amz-server-side-encryption': 'AES256'}, body: file});
+        if (!uploaded.ok) throw new Error(`Image upload failed (${uploaded.status}).`);
+        const result = await api('/api/classify-image', {method: 'POST', body: JSON.stringify({s3Key: upload.key})});
+        const detection = result.detections?.[0];
+        if (!detection) throw new Error('No recyclable material was detected.');
+        const type = detection.materialType;
+        form.dataset.recommendedType = type;
+        const select = form.querySelector('#material-type');
+        if (select && [...select.options].some(option => option.value === type)) select.value = type;
+        if (message) { message.className = 'note'; message.textContent = `Recommended: ${type} (${Math.round(Number(detection.confidence || 0) * 100)}% confidence). Please review and confirm.`; }
+      } catch (error) {
+        if (message) { message.className = 'error-message'; message.textContent = `Recognition failed: ${error.message}. You can select the material manually.`; }
+      }
+    })();
+  }, true);
   document.addEventListener('submit', event => {
     const form = event.target;
     if (view !== 'household' || form.id !== 'material-form') return;
