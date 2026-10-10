@@ -12,6 +12,7 @@ env/
 htmlcov/
 dist/
 build/
+.aws-sam/
 *.egg-info/
 ml/data/
 ml/models/

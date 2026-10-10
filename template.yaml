@@ -1,0 +1,68 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Phir environmental recovery API
+
+Parameters:
+  RecoveryTableName:
+    Type: String
+    Default: environmental-recovery
+  MlBucketName:
+    Type: String
+    Default: environmental-recovery-ml-132218943520
+  RekognitionModelArn:
+    Type: String
+    Default: ''
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 30
+    MemorySize: 512
+    Environment:
+      Variables:
+        DYNAMODB_ENABLED: 'true'
+        DYNAMODB_TABLE: !Ref RecoveryTableName
+        ML_S3_BUCKET: !Ref MlBucketName
+        REKOGNITION_MODEL_ARN: !Ref RekognitionModelArn
+
+Resources:
+  RecoveryApi:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src.lambda_handler.handler
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: dynamodb:BatchGetItem
+              Resource: !Sub arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${RecoveryTableName}
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:DeleteItem
+                - dynamodb:GetItem
+                - dynamodb:Scan
+                - dynamodb:Query
+              Resource:
+                - !Sub arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${RecoveryTableName}
+                - !Sub arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${RecoveryTableName}/index/*
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+                - s3:DeleteObject
+              Resource: !Sub arn:${AWS::Partition}:s3:::${MlBucketName}/demo-uploads/*
+            - Effect: Allow
+              Action: rekognition:DetectCustomLabels
+              Resource: '*'
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+
+Outputs:
+  ApiUrl:
+    Description: Recovery API endpoint
+    Value: !Sub https://${ServerlessHttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}
