@@ -18,6 +18,10 @@ The primary frontend is `frontend/phirFinal.html` and consumes the stable API
 contract through the adjacent bridge scripts. Keep shared business rules in `src/`; do not duplicate pricing,
 workflow transitions, inventory, or matching logic in the frontend.
 
+The authoritative project documentation lives in `docs/` and `CHAT_HANDOFF.md`.
+The files under `frontend/backend-context/` are preserved reference snapshots;
+update the authoritative documents first when contracts or architecture change.
+
 ## Current backend scope
 
 The domain service models the flow:
@@ -27,6 +31,9 @@ The domain service models the flow:
 It supports dependency-free in-memory mode for local tests and an opt-in AWS
 mode using DynamoDB persistence, private S3 image uploads, and Rekognition
 Custom Labels.
+
+The current hosted demo is available at:
+`https://main.d3hgpobebqphe1.amplifyapp.com/`
 
 ## Development
 

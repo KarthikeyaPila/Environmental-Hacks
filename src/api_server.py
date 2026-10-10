@@ -73,7 +73,8 @@ class DemoHandler(SimpleHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", self._cors_origin())
+        self.send_header("Vary", "Origin")
         self.end_headers()
         self.wfile.write(body)
 
@@ -83,10 +84,16 @@ class DemoHandler(SimpleHTTPRequestHandler):
 
     def do_OPTIONS(self):
         self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", self._cors_origin())
+        self.send_header("Vary", "Origin")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, x-amz-server-side-encryption")
         self.end_headers()
+
+    def _cors_origin(self) -> str:
+        origin = self.headers.get("Origin", "")
+        allowed = [item.strip() for item in os.getenv("CORS_ORIGINS", os.getenv("CORS_ORIGIN", "*")).split(",") if item.strip()]
+        return origin if origin and ("*" in allowed or origin in allowed) else (allowed[0] if allowed else "*")
 
     def do_GET(self):
         path = urlparse(self.path).path.rstrip("/")
@@ -111,7 +118,7 @@ class DemoHandler(SimpleHTTPRequestHandler):
             if path == "/api/households/household_1/inventory":
                 return self._send_json({"inventory": _household_inventory("household_1")})
             if path == "/api/households/household_1/collection-request":
-                request = next((r for r in service.requests.values() if r.household_id == "household_1"), None)
+                request = next((r for r in reversed(list(service.requests.values())) if r.household_id == "household_1"), None)
                 request_data = _request_json(request) if request else None
                 if request_data:
                     region = area_service.area_for(request.latitude, request.longitude)
@@ -190,7 +197,7 @@ class DemoHandler(SimpleHTTPRequestHandler):
                 request = service.collect_request(payload["kabadiwalaId"], path.split("/")[-2])
                 return self._send_json(_request_json(request))
             if path == "/api/recycler-requirements":
-                requirement = service.create_requirement(payload["recyclerId"], payload["materialType"], float(payload["requiredQuantityKg"]))
+                requirement = service.create_requirement(payload["recyclerId"], payload["materialType"], float(payload["requiredQuantityKg"]), float(payload.get("minimumQuantityKg", 0)))
                 return self._send_json(_requirement_json(requirement), 201)
             if path == "/api/recyclers/recycler_1/profile":
                 profile = service.profiles.get(payload["recyclerId"])
@@ -254,11 +261,12 @@ def _mock_classification(filename: str) -> dict:
 def _request_json(request) -> dict:
     if request is None:
         return None
-    return {"id": request.id, "status": request.status.value, "estimatedValueInr": round(request.estimated_value), "quantityByType": request.quantity_by_type, "assignedKabadiwalaId": request.assigned_kabadiwala_id}
+    region = area_service.area_for(request.latitude, request.longitude)
+    return {"id": request.id, "status": request.status.value, "estimatedValueInr": round(request.estimated_value), "quantityByType": request.quantity_by_type, "assignedKabadiwalaId": request.assigned_kabadiwala_id, "region": region.name, "regionId": region.id}
 
 
 def _requirement_json(requirement) -> dict:
-    return {"id": requirement.id, "materialType": requirement.material_type, "requiredQuantityKg": requirement.required_quantity_kg, "fulfilledQuantityKg": requirement.fulfilled_quantity_kg, "status": requirement.status.value}
+    return {"id": requirement.id, "materialType": requirement.material_type, "requiredQuantityKg": requirement.required_quantity_kg, "minimumQuantityKg": requirement.minimum_quantity_kg, "fulfilledQuantityKg": requirement.fulfilled_quantity_kg, "status": requirement.status.value}
 
 
 def _booking_json(booking) -> dict:

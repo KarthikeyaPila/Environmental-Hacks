@@ -24,6 +24,7 @@ Globals:
         DYNAMODB_TABLE: !Ref RecoveryTableName
         ML_S3_BUCKET: !Ref MlBucketName
         REKOGNITION_MODEL_ARN: !Ref RekognitionModelArn
+        CORS_ORIGINS: 'https://main.d3hgpobebqphe1.amplifyapp.com,http://localhost:8091,http://127.0.0.1:8091,http://localhost:8080,http://127.0.0.1:8080'
 
 Resources:
   RecoveryHttpApi:
@@ -31,7 +32,11 @@ Resources:
     Properties:
       CorsConfiguration:
         AllowOrigins:
-          - '*'
+          - https://main.d3hgpobebqphe1.amplifyapp.com
+          - http://localhost:8091
+          - http://127.0.0.1:8091
+          - http://localhost:8080
+          - http://127.0.0.1:8080
         AllowHeaders:
           - content-type
           - x-amz-server-side-encryption

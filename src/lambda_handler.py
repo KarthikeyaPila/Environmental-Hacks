@@ -5,10 +5,14 @@ from __future__ import annotations
 import base64
 import io
 import json
+import threading
 from http.client import HTTPMessage
 from urllib.parse import urlencode
 
 from .api_server import DemoHandler
+
+
+_HANDLER_LOCK = threading.RLock()
 
 
 class _Response:
@@ -55,21 +59,22 @@ class _Request(DemoHandler):
 
 
 def handler(event: dict, context) -> dict:
-    response = _Response()
-    request = _Request(event, response)
-    method = request.command.upper()
-    if method == "GET":
-        request.do_GET()
-    elif method == "POST":
-        request.do_POST()
-    elif method == "PUT":
-        request.do_PUT()
-    elif method == "DELETE":
-        request.do_DELETE()
-    elif method == "OPTIONS":
-        request.do_OPTIONS()
-    else:
-        response.status = 405
-        response.body.write(json.dumps({"error": {"code": "METHOD_NOT_ALLOWED", "message": "method not allowed"}}).encode())
+    with _HANDLER_LOCK:
+        response = _Response()
+        request = _Request(event, response)
+        method = request.command.upper()
+        if method == "GET":
+            request.do_GET()
+        elif method == "POST":
+            request.do_POST()
+        elif method == "PUT":
+            request.do_PUT()
+        elif method == "DELETE":
+            request.do_DELETE()
+        elif method == "OPTIONS":
+            request.do_OPTIONS()
+        else:
+            response.status = 405
+            response.body.write(json.dumps({"error": {"code": "METHOD_NOT_ALLOWED", "message": "method not allowed"}}).encode())
     payload = response.body.getvalue()
     return {"statusCode": response.status, "headers": response.headers, "isBase64Encoded": False, "body": payload.decode()}

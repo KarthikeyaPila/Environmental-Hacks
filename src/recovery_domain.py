@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from math import asin, cos, radians, sin, sqrt
+from math import isfinite
 from typing import Dict, Iterable, Optional
 from uuid import uuid4
 
@@ -104,6 +105,7 @@ class RecyclerRequirement:
     recycler_id: str
     material_type: str
     required_quantity_kg: float
+    minimum_quantity_kg: float = 0.0
     fulfilled_quantity_kg: float = 0.0
     status: RequirementStatus = RequirementStatus.OPEN
     created_at: str = field(default_factory=now)
@@ -244,10 +246,15 @@ class RecoveryService:
         request.updated_at = now()
         return request
 
-    def create_requirement(self, recycler_id: str, material_type: str, quantity_kg: float) -> RecyclerRequirement:
+    def create_requirement(self, recycler_id: str, material_type: str, quantity_kg: float, minimum_quantity_kg: float = 0.0) -> RecyclerRequirement:
         self._require_role(recycler_id, Role.RECYCLER)
         self._positive(quantity_kg, "quantity_kg")
-        requirement = RecyclerRequirement(new_id("need"), recycler_id, self._normalize_material(material_type), quantity_kg)
+        if minimum_quantity_kg < 0 or minimum_quantity_kg > quantity_kg:
+            raise ValueError("minimum_quantity_kg must be between zero and quantity_kg")
+        material_type = self._normalize_material(material_type)
+        if any(r.recycler_id == recycler_id and r.material_type == material_type and r.status != RequirementStatus.FULFILLED for r in self.requirements.values()):
+            raise ValueError("an active requirement already exists for this material")
+        requirement = RecyclerRequirement(new_id("need"), recycler_id, material_type, quantity_kg, minimum_quantity_kg)
         self.requirements[requirement.id] = requirement
         return requirement
 
@@ -273,15 +280,32 @@ class RecoveryService:
         remaining = requirement.required_quantity_kg - requirement.fulfilled_quantity_kg
         if quantity_kg > min(available, remaining):
             raise ValueError("requested booking exceeds available or required quantity")
+        if quantity_kg < requirement.minimum_quantity_kg:
+            raise ValueError("requested booking is below the requirement minimum quantity")
         selected_ids = []
         remaining_to_reserve = quantity_kg
         for material in available_records:
             if remaining_to_reserve <= 0:
                 break
-            material.status = "reserved"
-            material.updated_at = now()
-            selected_ids.append(material.id)
-            remaining_to_reserve -= material.quantity_kg
+            reserved_quantity = min(material.quantity_kg, remaining_to_reserve)
+            if reserved_quantity == material.quantity_kg:
+                material.status = "reserved"
+                material.updated_at = now()
+                selected_ids.append(material.id)
+            else:
+                material.quantity_kg = round(material.quantity_kg - reserved_quantity, 6)
+                material.estimated_value = round(material.quantity_kg * self.rates.get(material.material_type, 0.0), 2)
+                material.updated_at = now()
+                reserved = MaterialRecord(
+                    id=new_id("mat"), material_type=material.material_type,
+                    quantity_kg=reserved_quantity,
+                    estimated_value=round(reserved_quantity * self.rates.get(material.material_type, 0.0), 2),
+                    source_id=material.source_id, current_holder_id=material.current_holder_id,
+                    status="reserved", destination_id=material.destination_id,
+                )
+                self.materials[reserved.id] = reserved
+                selected_ids.append(reserved.id)
+            remaining_to_reserve -= reserved_quantity
         booking = Booking(new_id("book"), recycler_id, kabadiwala_id, requirement_id, requirement.material_type, quantity_kg, selected_ids)
         self.bookings[booking.id] = booking
         return booking
@@ -362,7 +386,7 @@ class RecoveryService:
         requirements = [r for r in self.requirements.values() if r.recycler_id == recycler_id]
         bookings = [b for b in self.bookings.values() if b.recycler_id == recycler_id]
         return {
-            "requirements": [{"id": r.id, "materialType": r.material_type, "requiredQuantityKg": r.required_quantity_kg, "fulfilledQuantityKg": r.fulfilled_quantity_kg, "status": r.status.value} for r in requirements],
+            "requirements": [{"id": r.id, "materialType": r.material_type, "requiredQuantityKg": r.required_quantity_kg, "minimumQuantityKg": r.minimum_quantity_kg, "fulfilledQuantityKg": r.fulfilled_quantity_kg, "status": r.status.value} for r in requirements],
             "fulfilledQuantityKg": round(sum(r.fulfilled_quantity_kg for r in requirements), 3),
             "completedBookings": sum(b.status == BookingStatus.COMPLETED for b in bookings),
             "reservedBookings": sum(b.status == BookingStatus.CONFIRMED for b in bookings),
@@ -386,7 +410,7 @@ class RecoveryService:
 
     @staticmethod
     def _positive(value: float, name: str) -> None:
-        if value <= 0:
+        if not isfinite(value) or value <= 0:
             raise ValueError(f"{name} must be greater than zero")
 
     @staticmethod

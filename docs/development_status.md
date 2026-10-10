@@ -2,8 +2,7 @@
 
 ## Current milestone
 
-Define the API contract and build a local vertical slice that can later be
-connected to the final frontend.
+Harden the deployed three-role vertical slice and verify the live browser flow.
 
 ## Completed
 
@@ -12,16 +11,18 @@ connected to the final frontend.
 - Initial in-memory domain service
 - Basic material, request, collection, inventory, requirement, and booking tests
 - Shared API contract
+- Deployed Amplify frontend, API Gateway/Lambda backend, DynamoDB persistence,
+  temporary S3 image uploads, and Rekognition integration
 
 ## Next
 
-- Add explicit Delhi area and pickup-opportunity models
-- Implement material reservation and transfer states
-- Add seeded demo data and reset script
-- Add local JSON HTTP API
-- Build the temporary `demo/` HTML client
-- Test the complete three-role flow
-- Add AWS SAM deployment and DynamoDB persistence
+- Harden partial reservation and material-splitting behavior
+- Complete a browser smoke test of all three live roles
+- Remove remaining frontend/backend and documentation drift
+- Stop Rekognition Custom Labels outside active demonstrations
+- The Lambda adapter serializes requests within a warm execution environment;
+  targeted DynamoDB conditional writes/transactions remain required before
+  allowing concurrent environments to safely mutate shared state.
 
 ## Collaboration rule
 

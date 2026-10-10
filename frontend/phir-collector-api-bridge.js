@@ -12,7 +12,7 @@
   };
   const localOpportunity = item => {
     const materialIds = Object.keys(item.quantityByType || {}).map(type => `${item.requestId}:${type}`);
-    return {id: item.requestId, status: item.status, area, materialIds, quantityByType: item.quantityByType || {}, quantityKg: Object.values(item.quantityByType || {}).reduce((sum, value) => sum + Number(value), 0), estimatedValue: item.estimatedValueInr};
+    return {id: item.requestId, status: item.status, area: item.region || area, region: item.region || area, regionId: item.regionId, materialIds, quantityByType: item.quantityByType || {}, quantityKg: Object.values(item.quantityByType || {}).reduce((sum, value) => sum + Number(value), 0), estimatedValue: item.estimatedValueInr};
   };
   async function refreshCollector() {
     const [areas, inventory, requests, metrics, profile] = await Promise.all([
@@ -26,7 +26,7 @@
     if (!areaIds[area]) area = areas.areas[0]?.name || area;
     const selected = areas.areas.find(item => item.name === area);
     const opportunities = selected ? await api(`/api/kabadiwalas/${collectorId}/areas/${selected.areaId}/opportunities`) : {opportunities: []};
-    const all = requests.requests.map(item => ({id: item.id, status: item.status, area, materialIds: [], quantityByType: item.quantityByType || {}, quantityKg: Object.values(item.quantityByType || {}).reduce((sum, value) => sum + Number(value), 0), estimatedValue: item.estimatedValueInr}));
+    const all = requests.requests.map(item => ({id: item.id, status: item.status, area: item.region || area, region: item.region || area, regionId: item.regionId, materialIds: [], quantityByType: item.quantityByType || {}, quantityKg: Object.values(item.quantityByType || {}).reduce((sum, value) => sum + Number(value), 0), estimatedValue: item.estimatedValueInr}));
     const visible = opportunities.opportunities.map(localOpportunity);
     state.requests = [...visible, ...all.filter(item => !visible.some(current => current.id === item.id))];
     state.materials = [...visible, ...all].flatMap(request => Object.entries(request.quantityByType || {}).map(([type, quantity]) => ({id: `${request.id}:${type}`, type, quantityKg: Number(quantity), estimatedValue: null, status: request.status, owner: 'household'})));
@@ -41,8 +41,10 @@
     }
   }
   async function run(action, success) {
+    document.querySelectorAll('button[data-action]').forEach(button => { button.disabled = true; button.dataset.busy = 'true'; });
     try { await action(); await refreshCollector(); toast(success); }
     catch (error) { toast(error.message); }
+    finally { document.querySelectorAll('button[data-busy="true"]').forEach(button => { button.disabled = false; delete button.dataset.busy; }); }
   }
   document.addEventListener('click', event => {
     const button = event.target.closest('[data-action]');

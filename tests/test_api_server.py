@@ -65,7 +65,7 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(status, 201)
         status, reserved = self.call("GET", "/api/recyclers/recycler_1/available-material")
         self.assertEqual(status, 200)
-        self.assertEqual(reserved["availableMaterial"], [{"kabadiwalaId": pet["kabadiwalaId"], "kabadiwalaName": "Ramesh Recovery", "region": "West", "regionId": "area_west", "materialType": "cardboard", "quantityKg": 2}])
+        self.assertEqual(reserved["availableMaterial"], [{"kabadiwalaId": pet["kabadiwalaId"], "kabadiwalaName": "Ramesh Recovery", "region": "West", "regionId": "area_west", "materialType": "pet", "quantityKg": 1.0}, {"kabadiwalaId": pet["kabadiwalaId"], "kabadiwalaName": "Ramesh Recovery", "region": "West", "regionId": "area_west", "materialType": "cardboard", "quantityKg": 2}])
 
         status, confirmed = self.call("POST", f"/api/bookings/{booking['id']}/confirm", {"recyclerId": "recycler_1"})
         self.assertEqual(status, 200)

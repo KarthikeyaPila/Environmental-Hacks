@@ -270,7 +270,7 @@ Request:
 
 ```json
 {
-  "areaId": "area_rohini",
+  "areaId": "area_north_west",
   "requestIds": ["req_123", "req_456"],
   "optimizeFor": "distance"
 }
@@ -286,13 +286,18 @@ Response:
 
 ```json
 {
-  "detections": [
-    {
-      "materialType": "pet",
-      "confidence": 0.92,
-      "requiresConfirmation": false
-    }
+  "mode": "local-preview",
+  "optimizeFor": "distance",
+  "stops": [
+    {"requestId": "req_123", "latitude": 28.72, "longitude": 77.10, "stopNumber": 1}
   ],
-  "mode": "mock"
+  "route": [
+    {"latitude": 28.68, "longitude": 77.15},
+    {"latitude": 28.72, "longitude": 77.10},
+    {"latitude": 28.68, "longitude": 77.15}
+  ],
+  "totalDistanceKm": 12.4,
+  "estimatedDurationMinutes": 50,
+  "privacy": "approximate coordinates; no household addresses"
 }
 ```

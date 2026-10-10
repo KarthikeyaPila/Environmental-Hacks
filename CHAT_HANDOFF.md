@@ -337,6 +337,9 @@ push every tiny edit; use coherent milestone commits.
 6. CloudWatch alarms and production observability are not configured beyond basic Lambda/API logging.
 7. The API uses demo identities such as `household_1`, `kabadiwala_1`, and `recycler_1`.
 8. The frontend should eventually replace remaining static descriptive copy with profile API values.
+9. The Lambda adapter serializes requests within a warm execution environment.
+   The snapshot repository still needs targeted conditional DynamoDB writes or
+   transactions before it can safely support concurrent Lambda environments.
 
 ## Important product guardrails
 

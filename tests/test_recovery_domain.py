@@ -48,6 +48,29 @@ class RecoveryDomainTests(unittest.TestCase):
         service.accept_request("kab_1", request.id)
 
 
+  def test_partial_booking_splits_material_record(self):
+    service = setup_service()
+    material = service.add_material("home_1", "pet", 10)
+    request = service.create_collection_request("home_1", [material.id])
+    service.accept_request("kab_1", request.id)
+    service.collect_request("kab_1", request.id)
+    requirement = service.create_requirement("rec_1", "pet", 10)
+    booking = service.book_material("rec_1", requirement.id, "kab_1", 3)
+
+    self.assertEqual(len(booking.material_ids), 1)
+    self.assertEqual(sum(m.quantity_kg for m in service.materials.values() if m.current_holder_id == "kab_1" and m.status == "collected"), 7)
+    self.assertEqual(sum(m.quantity_kg for m in service.materials.values() if m.current_holder_id == "kab_1" and m.status == "reserved"), 3)
+    service.confirm_booking("rec_1", booking.id)
+    self.assertEqual(sum(m.quantity_kg for m in service.materials.values() if m.current_holder_id == "rec_1"), 3)
+
+
+  def test_active_duplicate_requirement_is_rejected(self):
+    service = setup_service()
+    service.create_requirement("rec_1", "pet", 10)
+    with self.assertRaisesRegex(ValueError, "active requirement"):
+        service.create_requirement("rec_1", "pet", 5)
+
+
   def test_booking_cannot_exceed_inventory_or_requirement(self):
     service = setup_service()
     material = service.add_material("home_1", "pet", 2)
