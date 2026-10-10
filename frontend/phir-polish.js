@@ -15,6 +15,10 @@
     .workspace[data-theme="household"] .household-collection-panel .section-heading h2{font-size:24px}
     .workspace[data-theme="household"] .household-collection-panel .steps{display:block;margin:20px 0}
     .workspace[data-theme="household"] .household-collection-panel .step{margin-bottom:10px}
+    .workspace[data-theme="household"] .topbar{height:70px}
+    .workspace[data-theme="household"] .workspace-nav{margin-top:8px;padding-top:2px;padding-bottom:2px}
+    .workspace[data-theme="household"] .workspace-title{margin-top:16px;margin-bottom:18px;padding-top:20px;padding-bottom:26px}
+    .workspace[data-theme="household"] .metrics{margin-bottom:22px}
     /* The legacy partner sidebar is still present in the server-rendered
        household template while the live collection panel is assembled. Keep
        it out of the first paint so it cannot flash before being removed. */
