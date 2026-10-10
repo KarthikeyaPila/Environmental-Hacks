@@ -19,16 +19,6 @@
   });
   const localMaterial = item => ({id: item.id, type: item.materialType, quantityKg: Number(item.quantityKg), estimatedValue: item.estimatedValueInr, status: item.status || 'available', owner: 'household'});
   const localRequest = item => item && ({id: item.id, status: item.status, quantityKg: Object.values(item.quantityByType || {}).reduce((sum, value) => sum + Number(value), 0), quantityByType: item.quantityByType || {}, materialIds: [], area: item.region || 'Delhi', region: item.region || 'Delhi', regionId: item.regionId, assignedKabadiwalaId: item.assignedKabadiwalaId});
-  function paintHouseholdContribution() {
-    if (view !== 'household' || document.querySelector('#household-contribution')) return;
-    const collected = state.materials.filter(item => ['collected', 'reserved', 'transferred'].includes(item.status));
-    const transferred = state.materials.filter(item => item.status === 'transferred');
-    const section = document.createElement('section');
-    section.id = 'household-contribution';
-    section.className = 'guide-section household-contribution';
-    section.innerHTML = `<div class="section-heading"><h2>Your contribution</h2><span class="badge">Measured records</span></div><p class="muted">Your material stays traceable as it moves through the recovery chain.</p><div class="metrics"><div class="metric"><div class="metric-value">${state.materials.reduce((sum, item) => sum + Number(item.quantityKg || 0), 0).toLocaleString('en-IN')} kg</div><div class="metric-label">Material recorded</div></div><div class="metric"><div class="metric-value">${collected.reduce((sum, item) => sum + Number(item.quantityKg || 0), 0).toLocaleString('en-IN')} kg</div><div class="metric-label">Collected by a partner</div></div><div class="metric"><div class="metric-value">${transferred.reduce((sum, item) => sum + Number(item.quantityKg || 0), 0).toLocaleString('en-IN')} kg</div><div class="metric-label">Transferred onward</div></div></div><p class="note">Collection and transfer are recorded handovers. Actual recycling needs separate downstream evidence.</p>`;
-    document.querySelector('#workspace-content')?.append(section);
-  }
   async function refreshHousehold() {
     const [inventory, request, metrics] = await Promise.all([api(`/api/households/${householdId}/inventory`), api(`/api/households/${householdId}/collection-request`), api(`/api/households/${householdId}/metrics`)]);
     state.materials = inventory.inventory.map(localMaterial);
@@ -37,7 +27,6 @@
     // selecting a photo can outlive the initial household refresh and render()
     // would otherwise close the dialog while recognition is in progress.
     if (!modal.open) render();
-    paintHouseholdContribution();
     window.phirPaintMetrics?.([`${metrics.totalRecordedKg} kg`, `${metrics.totalCollectedKg} kg`, `₹${metrics.estimatedValueInr}`, `${metrics.collectionsCompleted}`]);
     const region = request.request?.region;
     const heading = document.querySelector('.collection-section .section-heading');
