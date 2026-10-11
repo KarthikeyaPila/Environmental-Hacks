@@ -25,11 +25,13 @@
       selected[role] = {id: profile.id, name: profile.name, role: profile.role};
       localStorage.setItem(STORAGE_KEY, JSON.stringify(selected));
       sessionStorage.setItem(`phir-profile:${role}`, JSON.stringify(selected[role]));
+      sessionStorage.setItem(`phir-profile-setup:${role}`, 'complete');
     },
     reset(role) {
       delete selected[role];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(selected));
       sessionStorage.removeItem(`phir-profile:${role}`);
+      sessionStorage.removeItem(`phir-profile-setup:${role}`);
     },
   };
   window.phirIdentity = identity;
@@ -91,7 +93,8 @@
     const label = `Account · ${identity.profileFor(role).name}`;
     if (button.textContent !== label) button.textContent = label;
     const promptKey = `phir-account-seen:${role}`;
-    const hasCustomProfile = Boolean(identity.profileFor(role).id);
+    const setupComplete = sessionStorage.getItem(`phir-profile-setup:${role}`) === 'complete';
+    const hasCustomProfile = Boolean(identity.profileFor(role).id) || setupComplete;
     if (!hasCustomProfile) sessionStorage.removeItem(promptKey);
     if (!hasCustomProfile && !sessionStorage.getItem(promptKey)) {
       sessionStorage.setItem(promptKey, 'true');
