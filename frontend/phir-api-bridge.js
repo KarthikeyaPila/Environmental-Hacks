@@ -38,6 +38,44 @@
     });
     document.querySelector('.workspace[data-theme="household"] .dashboard-functional-title [data-action="add-material"]')?.remove();
     document.querySelector('.workspace[data-theme="household"] .dashboard-partners')?.remove();
+    polishCollectionProgress();
+  }
+  function polishCollectionProgress() {
+    const section = document.querySelector('.workspace[data-theme="household"] .collection-section');
+    const request = state.requests.at(-1);
+    if (!section || !request) return;
+    if (!document.getElementById('household-progress-style')) {
+      const style = document.createElement('style');
+      style.id = 'household-progress-style';
+      style.textContent = '.collection-section .progress-kicker{display:block;margin:0 0 5px;color:var(--primary);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}.collection-section .status-line{align-items:center;gap:10px;margin:18px 0 22px}.collection-section .status-line .status-dot{width:9px;height:9px;box-shadow:0 0 0 5px color-mix(in srgb,var(--primary) 15%,transparent)}.collection-section .collection-status-copy{font-weight:700}.collection-section .steps{gap:10px;margin:0 0 24px}.collection-section .step{min-height:48px;padding-top:11px;font-size:11px}.collection-section .step.current{color:var(--primary);font-weight:800}.collection-section .processing-note{margin:0;font-size:12px;line-height:1.6}';
+      document.head.append(style);
+    }
+    const heading = section.querySelector('.section-heading h2');
+    if (heading) heading.textContent = 'Collection progress';
+    const headingWrap = section.querySelector('.section-heading');
+    if (headingWrap && !headingWrap.querySelector('.progress-kicker')) {
+      const kicker = document.createElement('span');
+      kicker.className = 'progress-kicker';
+      kicker.textContent = 'Processing stage';
+      headingWrap.prepend(kicker);
+      headingWrap.style.alignItems = 'flex-start';
+      headingWrap.style.flexDirection = 'column';
+      headingWrap.style.gap = '3px';
+    }
+    const copy = request.status === 'pending'
+      ? 'Step 1 of 3 · Your request is waiting for a collection partner to accept it.'
+      : request.status === 'accepted'
+        ? 'Step 2 of 3 · A collection partner accepted your request. Please keep the material ready for handover.'
+        : 'Step 3 of 3 · Collection completed. The material has moved into the recovery network.';
+    const statusLine = section.querySelector('.status-line');
+    if (statusLine) statusLine.innerHTML = `<span class="status-dot"></span><span class="collection-status-copy">${copy}</span><span class="badge">${kg(request.quantityKg)}</span>`;
+    const labels = ['Request sent', 'Partner accepted', 'Collected'];
+    section.querySelectorAll('.step').forEach((step, index) => {
+      step.textContent = labels[index] || step.textContent;
+      step.classList.toggle('current', (request.status === 'pending' && index === 0) || (request.status === 'accepted' && index === 1) || (request.status === 'collected' && index === 2));
+    });
+    const note = section.querySelector('p.muted');
+    if (note) { note.classList.add('processing-note'); note.textContent = request.status === 'pending' ? 'Nothing else is needed from you right now. We will show the next stage here.' : request.status === 'accepted' ? 'This stage is awaiting the physical handover.' : 'The collection handover is recorded. Downstream recycling is tracked separately.'; }
   }
   async function refreshHousehold() {
     const [inventory, request, metrics] = await Promise.all([api(`/api/households/${householdId}/inventory`), api(`/api/households/${householdId}/collection-request`), api(`/api/households/${householdId}/metrics`)]);
