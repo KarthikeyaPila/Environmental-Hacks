@@ -9,7 +9,7 @@ import threading
 from http.client import HTTPMessage
 from urllib.parse import urlencode
 
-from .api_server import DemoHandler
+from . import api_server
 
 
 _HANDLER_LOCK = threading.RLock()
@@ -31,7 +31,7 @@ class _Response:
         return None
 
 
-class _Request(DemoHandler):
+class _Request(api_server.DemoHandler):
     def __init__(self, event: dict, response: _Response) -> None:
         self.path = event.get("rawPath") or event.get("path") or "/"
         query = event.get("queryStringParameters") or {}
@@ -61,6 +61,7 @@ class _Request(DemoHandler):
 def handler(event: dict, context) -> dict:
     with _HANDLER_LOCK:
         response = _Response()
+        api_server.refresh_persisted_state()
         request = _Request(event, response)
         method = request.command.upper()
         if method == "GET":

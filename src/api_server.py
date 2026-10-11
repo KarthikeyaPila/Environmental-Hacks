@@ -98,6 +98,22 @@ else:
     service, area_service = build_state(with_demo_requests=True)
 
 
+def refresh_persisted_state() -> None:
+    """Reload the shared demo state before a Lambda invocation.
+
+    Lambda execution environments keep module globals warm. Without a refresh,
+    a request routed to another warm environment can still hold the snapshot
+    from before a newly-created profile or material was written to DynamoDB.
+    That made the frontend correctly-created profile look missing immediately
+    after the redirect.
+    """
+    global service, area_service
+    if repository is None:
+        return
+    service, area_service = build_state(with_demo_requests=False)
+    repository.load_service(service)
+
+
 class DemoHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT / "demo"), **kwargs)

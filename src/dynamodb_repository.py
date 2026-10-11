@@ -117,10 +117,10 @@ class DynamoRecoveryRepository:
 
     def load_service(self, service) -> None:
         """Restore persisted entities into an existing RecoveryService."""
-        response = self.table.scan()
+        response = self.table.scan(ConsistentRead=True)
         items = response.get("Items", [])
         while response.get("LastEvaluatedKey"):
-            response = self.table.scan(ExclusiveStartKey=response["LastEvaluatedKey"])
+            response = self.table.scan(ConsistentRead=True, ExclusiveStartKey=response["LastEvaluatedKey"])
             items.extend(response.get("Items", []))
         for item in items:
             kind = item.get("sk")
