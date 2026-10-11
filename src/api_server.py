@@ -22,7 +22,7 @@ from .area_opportunities import AreaOpportunityService, DELHI_AREAS
 from .image_classifier import classify_s3_object, classify_with_rekognition
 from .image_storage import create_upload, delete_upload
 from .route_planner import plan_preview
-from .recovery_domain import Profile, RecoveryService, RequestStatus, RequirementStatus, Role
+from .recovery_domain import Profile, RecoveryService, RequestStatus, RequirementStatus, Role, new_id
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -219,6 +219,35 @@ class DemoHandler(SimpleHTTPRequestHandler):
             if path == "/api/demo/reset":
                 service, area_service = build_state(with_demo_requests=True)
                 return self._send_json({"ok": True})
+            if path == "/api/demo/profiles":
+                role = Role(payload["role"])
+                name = str(payload.get("name", "")).strip()
+                locality = str(payload.get("locality", "")).strip()
+                if not name or not locality:
+                    raise ValueError("name and locality are required")
+                area = next((item for item in DELHI_AREAS if item.name == locality), None)
+                if area is None:
+                    raise ValueError("choose a valid Delhi locality")
+                profile_id = str(payload.get("id", "")).strip()
+                profile = service.profiles.get(profile_id) if profile_id else None
+                if profile and profile.role != role:
+                    raise ValueError("profile role cannot be changed")
+                created = not profile
+                if not profile:
+                    profile_id = new_id(role.value)
+                    if role == Role.HOUSEHOLD:
+                        profile = Profile(profile_id, role, name, area.center_latitude, area.center_longitude, locality=locality)
+                    elif role == Role.KABADIWALA:
+                        profile = Profile(profile_id, role, name, area.center_latitude, area.center_longitude, 25, {"pet", "cardboard", "paper", "aluminium", "glass", "wood"}, 4.5, 1.0, locality=locality)
+                    else:
+                        profile = Profile(profile_id, role, name, area.center_latitude, area.center_longitude, locality=locality, contact=f"{profile_id}@demo-recycler.in")
+                    service.add_profile(profile)
+                else:
+                    profile.name = name
+                    profile.locality = locality
+                    profile.latitude = area.center_latitude
+                    profile.longitude = area.center_longitude
+                return self._send_json(service.profile_summary(profile.id), 201 if created else 200)
             if path == "/api/materials":
                 material = service.add_material(payload["userId"], payload["materialType"], float(payload["quantityKg"]))
                 return self._send_json(_material_json(material), 201)
