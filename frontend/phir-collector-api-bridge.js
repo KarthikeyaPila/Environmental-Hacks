@@ -1,7 +1,7 @@
 /* Backend bridge for the collection-partner workspace. */
 (() => {
   const API_BASE = window.PHIR_API_BASE || '';
-  const collectorId = 'kabadiwala_1';
+  const collectorId = window.phirIdentity?.idFor('kabadiwala') || 'kabadiwala_1';
   const areaIds = {};
   let selectedMapArea = null;
   const slug = name => `area_${name.toLowerCase().replaceAll(' ', '_')}`;

@@ -125,6 +125,23 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(len(bookings["bookings"]), 1)
 
+    def test_http_uses_dynamic_profiles_and_material_owners(self):
+        status, profile = self.call("GET", "/api/recyclers/recycler_2/profile")
+        self.assertEqual(status, 200)
+        self.assertEqual(profile["name"], "ReForm Plastics")
+
+        status, material = self.call("POST", "/api/materials", {"userId": "household_2", "materialType": "wood", "quantityKg": 0.77})
+        self.assertEqual(status, 201)
+        status, inventory = self.call("GET", "/api/households/household_2/inventory")
+        self.assertEqual(status, 200)
+        self.assertIn({"materialType": "wood", "quantityKg": 0.77, "estimatedValueInr": 0}, inventory["inventory"])
+
+        status, _ = self.call("DELETE", f"/api/materials/{material['id']}", {"userId": "household_2"})
+        self.assertEqual(status, 200)
+        status, inventory = self.call("GET", "/api/households/household_2/inventory")
+        self.assertEqual(status, 200)
+        self.assertNotIn({"materialType": "wood", "quantityKg": 0.77, "estimatedValueInr": 0}, inventory["inventory"])
+
 
 if __name__ == "__main__":
     unittest.main()

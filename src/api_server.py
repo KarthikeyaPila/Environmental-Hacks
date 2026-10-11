@@ -137,7 +137,8 @@ class DemoHandler(SimpleHTTPRequestHandler):
             if path == "/api/demo/users":
                 users = [{"id": p.id, "role": p.role.value, "name": p.name} for p in service.profiles.values()]
                 return self._send_json({"users": users})
-            if path == "/api/demo/areas" or path == "/api/kabadiwalas/kabadiwala_1/areas":
+            parts = [part for part in path.split("/") if part]
+            if path == "/api/demo/areas" or (len(parts) == 4 and parts[:2] == ["api", "kabadiwalas"] and parts[3] == "areas"):
                 summaries = area_service.summaries(service.requests.values())
                 status_counts = {status.value: 0 for status in RequestStatus}
                 for request in service.requests.values():
@@ -153,46 +154,58 @@ class DemoHandler(SimpleHTTPRequestHandler):
                         "cancelled": status_counts[RequestStatus.CANCELLED.value],
                     },
                 })
-            if path.startswith("/api/kabadiwalas/kabadiwala_1/areas/") and path.endswith("/opportunities"):
-                area_id = path.split("/")[-2]
+            if len(parts) == 6 and parts[:2] == ["api", "kabadiwalas"] and parts[3] == "areas" and parts[5] == "opportunities":
+                service._require_role(parts[2], Role.KABADIWALA)
+                area_id = parts[4]
                 return self._send_json({"opportunities": area_service.opportunities(area_id, service.requests.values())})
-            if path == "/api/kabadiwalas/kabadiwala_1/inventory":
-                return self._send_json({"inventory": _inventory("kabadiwala_1")})
-            if path == "/api/kabadiwalas/kabadiwala_1/requests":
+            if len(parts) == 4 and parts[:2] == ["api", "kabadiwalas"] and parts[3] in {"inventory", "requests", "metrics", "profile"}:
+                kabadiwala_id = parts[2]
+                service._require_role(kabadiwala_id, Role.KABADIWALA)
+                resource = parts[3]
+                if resource == "inventory":
+                    return self._send_json({"inventory": _inventory(kabadiwala_id)})
+                if resource == "metrics":
+                    return self._send_json(service.kabadiwala_metrics(kabadiwala_id))
+                if resource == "profile":
+                    return self._send_json(service.profile_summary(kabadiwala_id))
                 requests = [
                     r for r in service.requests.values()
                     if r.status == RequestStatus.PENDING
-                    or r.assigned_kabadiwala_id == "kabadiwala_1"
+                    or r.assigned_kabadiwala_id == kabadiwala_id
                 ]
                 return self._send_json({"requests": [_request_json(r) for r in requests]})
-            if path == "/api/households/household_1/inventory":
-                return self._send_json({"inventory": _household_inventory("household_1")})
-            if path == "/api/households/household_1/collection-request":
-                request = next((r for r in reversed(list(service.requests.values())) if r.household_id == "household_1"), None)
+            if len(parts) == 4 and parts[:2] == ["api", "households"] and parts[3] in {"inventory", "collection-request", "metrics", "profile"}:
+                household_id = parts[2]
+                service._require_role(household_id, Role.HOUSEHOLD)
+                resource = parts[3]
+                if resource == "inventory":
+                    return self._send_json({"inventory": _household_inventory(household_id)})
+                if resource == "metrics":
+                    return self._send_json(service.household_metrics(household_id))
+                if resource == "profile":
+                    return self._send_json(service.profile_summary(household_id))
+                request = next((r for r in reversed(list(service.requests.values())) if r.household_id == household_id), None)
                 request_data = _request_json(request) if request else None
                 if request_data:
                     region = area_service.area_for(request.latitude, request.longitude)
                     request_data["region"] = region.name
                     request_data["regionId"] = region.id
                 return self._send_json({"request": request_data})
-            if path == "/api/recyclers/recycler_1/available-material":
-                return self._send_json({"availableMaterial": [_available_json(item) for item in service.available_material("recycler_1")]})
-            if path == "/api/recyclers/recycler_1/requirements":
-                return self._send_json({"requirements": [_requirement_json(r) for r in service.requirements.values() if r.recycler_id == "recycler_1"]})
-            if path == "/api/kabadiwalas/kabadiwala_1/route":
+            if len(parts) == 4 and parts[:2] == ["api", "recyclers"] and parts[3] in {"available-material", "requirements", "bookings", "metrics", "profile"}:
+                recycler_id = parts[2]
+                service._require_role(recycler_id, Role.RECYCLER)
+                resource = parts[3]
+                if resource == "available-material":
+                    return self._send_json({"availableMaterial": [_available_json(item) for item in service.available_material(recycler_id)]})
+                if resource == "requirements":
+                    return self._send_json({"requirements": [_requirement_json(r) for r in service.requirements.values() if r.recycler_id == recycler_id]})
+                if resource == "bookings":
+                    return self._send_json({"bookings": [_booking_json(b) for b in service.bookings.values() if b.recycler_id == recycler_id]})
+                if resource == "metrics":
+                    return self._send_json(service.recycler_metrics(recycler_id))
+                return self._send_json(service.profile_summary(recycler_id))
+            if len(parts) == 4 and parts[:2] == ["api", "kabadiwalas"] and parts[3] == "route":
                 raise ValueError("route planning requires POST")
-            if path == "/api/recyclers/recycler_1/bookings":
-                return self._send_json({"bookings": [_booking_json(b) for b in service.bookings.values() if b.recycler_id == "recycler_1"]})
-            if path == "/api/households/household_1/metrics":
-                return self._send_json(service.household_metrics("household_1"))
-            if path == "/api/kabadiwalas/kabadiwala_1/metrics":
-                return self._send_json(service.kabadiwala_metrics("kabadiwala_1"))
-            if path == "/api/kabadiwalas/kabadiwala_1/profile":
-                return self._send_json(service.profile_summary("kabadiwala_1"))
-            if path == "/api/recyclers/recycler_1/metrics":
-                return self._send_json(service.recycler_metrics("recycler_1"))
-            if path == "/api/recyclers/recycler_1/profile":
-                return self._send_json(service.profile_summary("recycler_1"))
             return super().do_GET()
         except ValueError as exc:
             self._send_json({"error": {"code": "NOT_FOUND", "message": str(exc)}}, 404)
@@ -226,7 +239,9 @@ class DemoHandler(SimpleHTTPRequestHandler):
                 if content_type not in {"image/jpeg", "image/png"}:
                     raise ValueError("only JPG and PNG images are supported")
                 return self._send_json(create_upload(os.getenv("ML_S3_BUCKET", "environmental-recovery-ml-132218943520"), content_type, filename))
-            if path == "/api/kabadiwalas/kabadiwala_1/route":
+            if len([part for part in path.split("/") if part]) == 4 and path.startswith("/api/kabadiwalas/") and path.endswith("/route"):
+                collector_id = path.split("/")[3]
+                service._require_role(collector_id, Role.KABADIWALA)
                 request_ids = payload.get("requestIds", [])
                 opportunities = [item for item in area_service.opportunities(payload.get("areaId", ""), service.requests.values()) if item["requestId"] in request_ids]
                 stops = [{"requestId": item["requestId"], "latitude": item["approximateLatitude"], "longitude": item["approximateLongitude"]} for item in opportunities]
@@ -251,9 +266,10 @@ class DemoHandler(SimpleHTTPRequestHandler):
             if path == "/api/recycler-requirements":
                 requirement = service.create_requirement(payload["recyclerId"], payload["materialType"], float(payload["requiredQuantityKg"]), float(payload.get("minimumQuantityKg", 0)))
                 return self._send_json(_requirement_json(requirement), 201)
-            if path == "/api/recyclers/recycler_1/profile":
+            if path.startswith("/api/recyclers/") and path.endswith("/profile"):
+                path_recycler_id = path.split("/")[3]
                 profile = service.profiles.get(payload["recyclerId"])
-                if not profile or profile.role != Role.RECYCLER:
+                if path_recycler_id != payload["recyclerId"] or not profile or profile.role != Role.RECYCLER:
                     raise ValueError("recycler profile not found")
                 profile.name = str(payload.get("name", profile.name)).strip() or profile.name
                 profile.locality = str(payload.get("locality", getattr(profile, "locality", "Delhi"))).strip() or "Delhi"
@@ -286,10 +302,11 @@ class DemoHandler(SimpleHTTPRequestHandler):
     def do_DELETE(self):
         self._persist_after_response = True
         path = urlparse(self.path).path.rstrip("/")
+        payload = self._body()
         try:
             if path.startswith("/api/materials/"):
                 material_id = path.split("/")[-1]
-                service.remove_material("household_1", material_id)
+                service.remove_material(payload["userId"], material_id)
                 if repository is not None:
                     repository.delete_material(material_id)
                 return self._send_json({"ok": True})

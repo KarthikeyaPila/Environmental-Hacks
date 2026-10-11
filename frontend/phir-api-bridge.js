@@ -1,7 +1,7 @@
 /* Backend bridge for the primary Phir frontend. */
 (() => {
   const API_BASE = window.PHIR_API_BASE || '';
-  const householdId = 'household_1';
+  const householdId = window.phirIdentity?.idFor('household') || 'household_1';
   const api = async (path, options = {}) => {
     const response = await fetch(`${API_BASE}${path}`, {
       headers: {'Content-Type': 'application/json', ...(options.headers || {})},
@@ -85,7 +85,7 @@
       run(() => api('/api/collection-requests', {method: 'POST', body: JSON.stringify({householdId})}), 'Collection request created.');
     } else if (action === 'delete-confirmed') {
       event.preventDefault(); event.stopImmediatePropagation();
-      run(() => api(`/api/materials/${button.dataset.id}`, {method: 'DELETE'}), 'Material removed.');
+      run(() => api(`/api/materials/${button.dataset.id}`, {method: 'DELETE', body: JSON.stringify({userId: householdId})}), 'Material removed.');
     }
   }, true);
   document.addEventListener('change', event => {

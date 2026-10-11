@@ -1,7 +1,7 @@
 /* Backend bridge for the recycler workspace. */
 (() => {
   const API_BASE = window.PHIR_API_BASE || '';
-  const recyclerId = 'recycler_1';
+  const recyclerId = window.phirIdentity?.idFor('recycler') || 'recycler_1';
   const api = async (path, options = {}) => {
     const response = await fetch(`${API_BASE}${path}`, {headers: {'Content-Type': 'application/json', ...(options.headers || {})}, ...options});
     const body = await response.json();
