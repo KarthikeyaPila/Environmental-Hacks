@@ -17,9 +17,14 @@
       if (!lot) return;
       const matches = state.requirements.filter(requirement => requirement.type === lot.type && requirement.status !== 'fulfilled');
       const status = card.querySelector('.lot-meta span:last-child');
-      if (status) status.textContent = matches.length ? `Matches ${matches.length} open requirement${matches.length === 1 ? '' : 's'}` : 'No current requirement match';
+      const statusText = matches.length ? `Matches ${matches.length} open requirement${matches.length === 1 ? '' : 's'}` : 'No current requirement match';
+      if (status && status.textContent !== statusText) status.textContent = statusText;
       const button = card.querySelector('[data-action="reserve"]');
-      if (button && !matches.length) { button.textContent = 'View material'; button.disabled = true; button.title = 'Publish a matching requirement before reserving this material.'; }
+      if (button && !matches.length) {
+        if (button.textContent.trim() !== 'View material') button.textContent = 'View material';
+        button.disabled = true;
+        button.title = 'Publish a matching requirement before reserving this material.';
+      }
     });
   }
   function polishRecyclerView() {
@@ -30,14 +35,15 @@
     if (tab === 'Material marketplace') document.querySelectorAll('.dashboard-reference-section').forEach(section => section.remove());
     document.querySelectorAll('.metrics .metric-label').forEach(label => {
       const labels = {'Available in sample marketplace': 'Available collected material', 'Confirmed transfers': 'Confirmed handovers'};
-      if (labels[label.textContent.trim()]) label.textContent = labels[label.textContent.trim()];
+      if (labels[label.textContent.trim()] && label.textContent !== labels[label.textContent.trim()]) label.textContent = labels[label.textContent.trim()];
     });
     if (tab === 'Requirements') document.querySelectorAll('.requirement-row').forEach((row, index) => {
       const requirement = state.requirements[index];
       if (!requirement) return;
       const availableKg = state.lots.filter(lot => lot.type === requirement.type).reduce((total, lot) => total + lot.quantityKg, 0);
       const description = row.querySelector('p');
-      if (description) description.textContent = `${Math.max(0, requirement.quantityKg - requirement.fulfilledKg).toFixed(1)} kg still needed · ${availableKg.toFixed(1)} kg available now · Delhi`;
+      const descriptionText = `${Math.max(0, requirement.quantityKg - requirement.fulfilledKg).toFixed(1)} kg still needed · ${availableKg.toFixed(1)} kg available now · Delhi`;
+      if (description && description.textContent !== descriptionText) description.textContent = descriptionText;
     });
   }
   async function refreshRecycler() {
