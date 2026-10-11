@@ -6,25 +6,30 @@
   const safe = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
   let selected = {};
   try { selected = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {}; } catch (_) { selected = {}; }
+  const sessionProfile = role => {
+    try { return JSON.parse(sessionStorage.getItem(`phir-profile:${role}`) || 'null'); } catch (_) { return null; }
+  };
 
   const roleForView = () => {
     const theme = document.querySelector('.workspace')?.dataset.theme;
     return ({household: 'household', collector: 'kabadiwala', recycler: 'recycler'}[theme] || null);
   };
   const identity = {
-    idFor(role) { return selected[role]?.id || defaults[role]; },
+    idFor(role) { return selected[role]?.id || sessionProfile(role)?.id || defaults[role]; },
     profileFor(role) {
-      const profile = selected[role];
+      const profile = selected[role] || sessionProfile(role);
       if (!profile || profile.id === defaults[role]) return {id: null, name: 'New profile'};
       return profile;
     },
     set(role, profile) {
       selected[role] = {id: profile.id, name: profile.name, role: profile.role};
       localStorage.setItem(STORAGE_KEY, JSON.stringify(selected));
+      sessionStorage.setItem(`phir-profile:${role}`, JSON.stringify(selected[role]));
     },
     reset(role) {
       delete selected[role];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(selected));
+      sessionStorage.removeItem(`phir-profile:${role}`);
     },
   };
   window.phirIdentity = identity;
@@ -86,7 +91,7 @@
     const label = `Account · ${identity.profileFor(role).name}`;
     if (button.textContent !== label) button.textContent = label;
     const promptKey = `phir-account-seen:${role}`;
-    const hasCustomProfile = Boolean(selected[role]?.id && selected[role].id !== defaults[role]);
+    const hasCustomProfile = Boolean(identity.profileFor(role).id);
     if (!hasCustomProfile) sessionStorage.removeItem(promptKey);
     if (!hasCustomProfile && !sessionStorage.getItem(promptKey)) {
       sessionStorage.setItem(promptKey, 'true');
