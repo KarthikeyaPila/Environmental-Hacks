@@ -15,6 +15,7 @@
         sessionStorage.removeItem('phir-account-seen:household');
         const next = new URL(location.href);
         next.searchParams.delete('profile');
+        next.searchParams.delete('profileRole');
         location.replace(next.toString());
       }
       throw new Error(message);

@@ -6,7 +6,10 @@
   const safe = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
   let selected = {};
   try { selected = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {}; } catch (_) { selected = {}; }
-  const urlProfileId = () => new URLSearchParams(location.search).get('profile');
+  const urlProfile = role => {
+    const params = new URLSearchParams(location.search);
+    return params.get('profileRole') === role ? params.get('profile') : null;
+  };
   const sessionProfile = role => {
     try { return JSON.parse(sessionStorage.getItem(`phir-profile:${role}`) || 'null'); } catch (_) { return null; }
   };
@@ -16,9 +19,9 @@
     return ({household: 'household', collector: 'kabadiwala', recycler: 'recycler'}[theme] || null);
   };
   const identity = {
-    idFor(role) { return urlProfileId() || selected[role]?.id || sessionProfile(role)?.id || defaults[role]; },
+    idFor(role) { return urlProfile(role) || selected[role]?.id || sessionProfile(role)?.id || defaults[role]; },
     profileFor(role) {
-      const profile = selected[role] || sessionProfile(role) || (urlProfileId() ? {id: urlProfileId(), name: 'Your profile'} : null);
+      const profile = selected[role] || sessionProfile(role) || (urlProfile(role) ? {id: urlProfile(role), name: 'Your profile'} : null);
       if (!profile || profile.id === defaults[role]) return {id: null, name: 'New profile'};
       return profile;
     },
@@ -73,7 +76,7 @@
       const profileId = current.id || undefined;
       fetch(`${window.PHIR_API_BASE || ''}/api/demo/profiles`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({...(profileId ? {id: profileId} : {}), role, name: form.name.value.trim(), locality: form.locality.value})})
         .then(response => response.json().then(body => ({response, body})))
-        .then(({response, body}) => { if (!response.ok) throw new Error(body?.error?.message || 'Could not save profile.'); identity.set(role, body); const next = new URL(location.href); next.searchParams.set('profile', body.id); location.replace(next.toString()); })
+        .then(({response, body}) => { if (!response.ok) throw new Error(body?.error?.message || 'Could not save profile.'); identity.set(role, body); const next = new URL(location.href); next.searchParams.set('profile', body.id); next.searchParams.set('profileRole', role); location.replace(next.toString()); })
         .catch(error => { submit.disabled = false; const message = document.createElement('p'); message.className = 'phir-identity-error'; message.textContent = error.message; form.prepend(message); });
     };
   }
