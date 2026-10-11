@@ -68,7 +68,8 @@
       button.onclick = () => openPicker(role);
       links.append(button);
     }
-    button.textContent = `Account · ${identity.profileFor(role).name}`;
+    const label = `Account · ${identity.profileFor(role).name}`;
+    if (button.textContent !== label) button.textContent = label;
     if (!sessionStorage.getItem(`phir-account-seen:${role}`)) {
       sessionStorage.setItem(`phir-account-seen:${role}`, 'true');
       setTimeout(() => openPicker(role), 250);
