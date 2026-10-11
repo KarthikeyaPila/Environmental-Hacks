@@ -191,6 +191,8 @@ class DemoHandler(SimpleHTTPRequestHandler):
                 return self._send_json(service.profile_summary("kabadiwala_1"))
             if path == "/api/recyclers/recycler_1/metrics":
                 return self._send_json(service.recycler_metrics("recycler_1"))
+            if path == "/api/recyclers/recycler_1/profile":
+                return self._send_json(service.profile_summary("recycler_1"))
             return super().do_GET()
         except ValueError as exc:
             self._send_json({"error": {"code": "NOT_FOUND", "message": str(exc)}}, 404)

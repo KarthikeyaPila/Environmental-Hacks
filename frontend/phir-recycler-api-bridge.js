@@ -10,17 +10,32 @@
   };
   const localRequirement = item => ({id: item.id, type: item.materialType, quantityKg: Number(item.requiredQuantityKg), minimumKg: Number(item.minimumQuantityKg || 0), fulfilledKg: Number(item.fulfilledQuantityKg || 0), company: state.company.name, status: item.status});
   const localBooking = item => ({id: item.id, type: item.materialType, quantityKg: Number(item.quantityKg), partner: item.kabadiwalaId, requirementId: item.requirementId, status: item.status === 'confirmed' ? 'confirmed' : item.status === 'completed' ? 'completed' : item.status});
+  const materialLabel = value => String(value || '').replaceAll('_', ' ').replace(/\b\w/g, letter => letter.toUpperCase());
+  function hydrateMarketplace() {
+    document.querySelectorAll('.lot-card').forEach((card, index) => {
+      const lot = state.lots[index];
+      if (!lot) return;
+      const matches = state.requirements.filter(requirement => requirement.type === lot.type && requirement.status !== 'fulfilled');
+      const status = card.querySelector('.lot-meta span:last-child');
+      if (status) status.textContent = matches.length ? `Matches ${matches.length} open requirement${matches.length === 1 ? '' : 's'}` : 'No current requirement match';
+      const button = card.querySelector('[data-action="reserve"]');
+      if (button && !matches.length) { button.textContent = 'View material'; button.disabled = true; button.title = 'Publish a matching requirement before reserving this material.'; }
+    });
+  }
   async function refreshRecycler() {
-    const [requirements, available, bookings, metrics] = await Promise.all([
+    const [requirements, available, bookings, metrics, profile] = await Promise.all([
       api(`/api/recyclers/${recyclerId}/requirements`),
       api(`/api/recyclers/${recyclerId}/available-material`),
       api(`/api/recyclers/${recyclerId}/bookings`),
       api(`/api/recyclers/${recyclerId}/metrics`),
+      api(`/api/recyclers/${recyclerId}/profile`),
     ]);
+    state.company = {name: profile.name, locality: profile.locality, contact: profile.contact || ''};
     state.requirements = requirements.requirements.map(localRequirement);
     state.lots = available.availableMaterial.map(item => ({id: `${item.kabadiwalaId}:${item.materialType}`, type: item.materialType, quantityKg: Number(item.quantityKg), partner: item.kabadiwalaName || item.kabadiwalaId, area: item.region || 'Delhi', regionId: item.regionId, status: 'collected'}));
     state.bookings = bookings.bookings.map(localBooking);
     render();
+    [0, 100, 500].forEach(delay => setTimeout(hydrateMarketplace, delay));
     window.phirPaintMetrics?.([`${metrics.reservedBookings}`, `${metrics.fulfilledQuantityKg} kg`, `${metrics.completedBookings}`, `${metrics.requirements.length}`]);
   }
   async function run(action, success) {
