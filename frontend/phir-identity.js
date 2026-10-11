@@ -13,6 +13,10 @@
   const sessionProfile = role => {
     try { return JSON.parse(sessionStorage.getItem(`phir-profile:${role}`) || 'null'); } catch (_) { return null; }
   };
+  const handedOffProfile = role => {
+    const id = urlProfile(role);
+    return id ? {id, name: 'Your profile', role} : null;
+  };
 
   const roleForView = () => {
     const theme = document.querySelector('.workspace')?.dataset.theme;
@@ -21,15 +25,20 @@
   const identity = {
     idFor(role) { return urlProfile(role) || selected[role]?.id || sessionProfile(role)?.id || defaults[role]; },
     profileFor(role) {
-      const profile = selected[role] || sessionProfile(role) || (urlProfile(role) ? {id: urlProfile(role), name: 'Your profile'} : null);
+      // A freshly-created profile is handed back in the URL after the API call.
+      // It must win over the old seeded identity in localStorage; otherwise the
+      // setup gate sees "household_1" and opens the form again on reload.
+      const profile = handedOffProfile(role) || selected[role] || sessionProfile(role);
       if (!profile || profile.id === defaults[role]) return {id: null, name: 'New profile'};
       return profile;
     },
     set(role, profile) {
       selected[role] = {id: profile.id, name: profile.name, role: profile.role};
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(selected));
-      sessionStorage.setItem(`phir-profile:${role}`, JSON.stringify(selected[role]));
-      sessionStorage.setItem(`phir-profile-setup:${role}`, 'complete');
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(selected)); } catch (_) {}
+      try {
+        sessionStorage.setItem(`phir-profile:${role}`, JSON.stringify(selected[role]));
+        sessionStorage.setItem(`phir-profile-setup:${role}`, 'complete');
+      } catch (_) {}
     },
     reset(role) {
       delete selected[role];
@@ -97,8 +106,13 @@
     const label = `Account · ${identity.profileFor(role).name}`;
     if (button.textContent !== label) button.textContent = label;
     const promptKey = `phir-account-seen:${role}`;
-    const setupComplete = sessionStorage.getItem(`phir-profile-setup:${role}`) === 'complete';
-    const hasCustomProfile = Boolean(identity.profileFor(role).id) || setupComplete;
+    let setupComplete = false;
+    try { setupComplete = sessionStorage.getItem(`phir-profile-setup:${role}`) === 'complete'; } catch (_) {}
+    const hasUrlHandoff = Boolean(urlProfile(role));
+    const hasCustomProfile = Boolean(identity.profileFor(role).id) || setupComplete || hasUrlHandoff;
+    if (hasUrlHandoff) {
+      try { sessionStorage.setItem(`phir-profile-setup:${role}`, 'complete'); } catch (_) {}
+    }
     if (!hasCustomProfile) sessionStorage.removeItem(promptKey);
     if (!hasCustomProfile && !sessionStorage.getItem(promptKey)) {
       sessionStorage.setItem(promptKey, 'true');
