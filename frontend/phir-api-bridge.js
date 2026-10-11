@@ -13,7 +13,9 @@
       if (response.status === 404 && message === 'household profile not found' && window.phirIdentity) {
         window.phirIdentity.reset('household');
         sessionStorage.removeItem('phir-account-seen:household');
-        location.reload();
+        const next = new URL(location.href);
+        next.searchParams.delete('profile');
+        location.replace(next.toString());
       }
       throw new Error(message);
     }
