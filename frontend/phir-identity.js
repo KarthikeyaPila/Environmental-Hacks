@@ -22,6 +22,10 @@
       selected[role] = {id: profile.id, name: profile.name, role: profile.role};
       localStorage.setItem(STORAGE_KEY, JSON.stringify(selected));
     },
+    reset(role) {
+      delete selected[role];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(selected));
+    },
   };
   window.phirIdentity = identity;
 

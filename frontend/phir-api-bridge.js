@@ -8,7 +8,15 @@
       ...options,
     });
     const body = await response.json();
-    if (!response.ok) throw new Error(body?.error?.message || 'The recovery service is unavailable.');
+    if (!response.ok) {
+      const message = body?.error?.message || 'The recovery service is unavailable.';
+      if (response.status === 404 && message === 'household profile not found' && window.phirIdentity) {
+        window.phirIdentity.reset('household');
+        sessionStorage.removeItem('phir-account-seen:household');
+        location.reload();
+      }
+      throw new Error(message);
+    }
     return body;
   };
   const fileAsBase64 = file => new Promise((resolve, reject) => {
