@@ -93,6 +93,7 @@
     // selecting a photo can outlive the initial household refresh and render()
     // would otherwise close the dialog while recognition is in progress.
     if (!modal.open) render();
+    window.phirMarkWorkspaceReady?.();
     polishHouseholdLayout();
     setTimeout(polishHouseholdLayout, 0);
     window.phirPaintMetrics?.([`${metrics.totalRecordedKg} kg`, `${metrics.totalCollectedKg} kg`, `₹${metrics.estimatedValueInr}`, `${metrics.collectionsCompleted}`]);

@@ -28,6 +28,7 @@
     },
   };
   window.phirIdentity = identity;
+  window.phirMarkWorkspaceReady = () => document.querySelector('.workspace')?.classList.add('live-ready');
 
   const style = document.createElement('style');
   style.textContent = `
@@ -37,6 +38,8 @@
     .phir-identity-card input,.phir-identity-card select{width:100%;min-height:46px;margin:0 0 16px;padding:10px 12px;border:1px solid #202363;border-radius:8px;background:#fffdf4;color:#202363}
     .phir-identity-card .phir-identity-error{margin:0 0 12px;color:#cf1f3d;font-weight:700}
     .phir-identity-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}.phir-account-button{white-space:nowrap}
+    .workspace:not(.live-ready) #workspace-content{visibility:hidden;min-height:420px}
+    .workspace:not(.live-ready) #workspace-content:after{content:'Loading your live workspace…';visibility:visible;display:grid;place-items:center;min-height:420px;color:#202363;font:28px var(--display,Georgia);text-align:center}
   `;
   document.head.append(style);
 

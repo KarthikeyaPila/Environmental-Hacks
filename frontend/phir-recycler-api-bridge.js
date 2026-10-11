@@ -59,6 +59,7 @@
     state.lots = available.availableMaterial.map(item => ({id: `${item.kabadiwalaId}:${item.materialType}`, type: item.materialType, quantityKg: Number(item.quantityKg), partner: item.kabadiwalaName || item.kabadiwalaId, area: item.region || 'Delhi', regionId: item.regionId, status: 'collected'}));
     state.bookings = bookings.bookings.map(localBooking);
     render();
+    window.phirMarkWorkspaceReady?.();
     [0, 100, 500].forEach(delay => setTimeout(() => { polishRecyclerView(); hydrateMarketplace(); }, delay));
     window.phirPaintMetrics?.([`${metrics.reservedBookings}`, `${metrics.fulfilledQuantityKg} kg`, `${metrics.completedBookings}`, `${metrics.requirements.length}`]);
   }

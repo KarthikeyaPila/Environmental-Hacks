@@ -757,7 +757,7 @@ const button=(label,action,variant='',extra='')=>`<button class="btn ${variant}"
 const names={pet:'PET plastic',cardboard:'Cardboard',paper:'Paper',aluminium:'Aluminium',glass:'Glass',wood:'Wood'};
 const kg=n=>Number(n).toLocaleString('en-IN',{maximumFractionDigits:1})+' kg';
 const money=n=>n==null?'Quote pending':'₹'+Number(n).toLocaleString('en-IN');
-let state=DemoModel.create(),view='select',tab='',filter='all',area='Lajpat Nagar',selectedStops=new Set(),routeVisible=false,cleanup=()=>{},toastTimer,photoURL=null;
+let state=DemoModel.create(),apiReady=false,view='select',tab='',filter='all',area='Lajpat Nagar',selectedStops=new Set(),routeVisible=false,cleanup=()=>{},toastTimer,photoURL=null;
 // Session-scoped presentation state. No persistent storage or invented server behavior.
 const roleNames={household:'Household',collector:'Collection partner',recycler:'Recycler'};
 const tabs={household:['Materials & collection','Contributions'],collector:['Collection map','Inventory','Profile & impact'],recycler:['Material marketplace','Requirements','Bookings','Company profile']};
@@ -771,6 +771,7 @@ function clearRoleLoader(){
  const overlay=$('#role-loader');if(overlay&&!overlay.hidden){overlay.hidden=true;app.inert=false;document.body.style.overflow=roleLoadOverflow;app.removeAttribute('aria-busy');}
 }
 function go(next){
+ if(['household','collector','recycler'].includes(next))apiReady=false;
  if(['household','collector','recycler'].includes(next)&&next!==view){
   if(roleLoadPending)return;
   const overlay=$('#role-loader');roleLoadPending=next;roleLoadOverflow=document.body.style.overflow;

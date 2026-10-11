@@ -150,6 +150,7 @@
     state.materials = [...visible, ...all].flatMap(request => Object.entries(request.quantityByType || {}).map(([type, quantity]) => ({id: `${request.id}:${type}`, type, quantityKg: Number(quantity), estimatedValue: null, status: request.status, owner: 'household'})));
     state.lots = inventory.inventory.map(item => ({id: `inventory:${item.materialType}`, type: item.materialType, quantityKg: Number(item.quantityKg), status: 'collected', partner: 'Your collection inventory', area}));
     render();
+    window.phirMarkWorkspaceReady?.();
     renderRegionRequests(state.requests);
     document.querySelectorAll('.section-heading').forEach(heading => {
       if (heading.querySelector('h3')?.textContent.trim() !== 'Neighbourhood preview') return;
