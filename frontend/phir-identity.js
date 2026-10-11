@@ -78,8 +78,11 @@
     }
     const label = `Account · ${identity.profileFor(role).name}`;
     if (button.textContent !== label) button.textContent = label;
-    if (!sessionStorage.getItem(`phir-account-seen:${role}`)) {
-      sessionStorage.setItem(`phir-account-seen:${role}`, 'true');
+    const promptKey = `phir-account-seen:${role}`;
+    const hasCustomProfile = Boolean(selected[role]?.id && selected[role].id !== defaults[role]);
+    if (!hasCustomProfile) sessionStorage.removeItem(promptKey);
+    if (!hasCustomProfile && !sessionStorage.getItem(promptKey)) {
+      sessionStorage.setItem(promptKey, 'true');
       setTimeout(() => openPicker(role), 250);
     }
   }
