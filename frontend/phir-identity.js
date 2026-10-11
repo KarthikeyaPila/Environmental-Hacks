@@ -13,7 +13,11 @@
   };
   const identity = {
     idFor(role) { return selected[role]?.id || defaults[role]; },
-    profileFor(role) { return selected[role] || {id: defaults[role], name: 'Demo account'}; },
+    profileFor(role) {
+      const profile = selected[role];
+      if (!profile || profile.id === defaults[role]) return {id: null, name: 'New profile'};
+      return profile;
+    },
     set(role, profile) {
       selected[role] = {id: profile.id, name: profile.name, role: profile.role};
       localStorage.setItem(STORAGE_KEY, JSON.stringify(selected));
@@ -51,7 +55,8 @@
       const form = dialog.querySelector('form');
       const submit = form.querySelector('button[type="submit"]');
       submit.disabled = true;
-      fetch(`${window.PHIR_API_BASE || ''}/api/demo/profiles`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id: current.id, role, name: form.name.value.trim(), locality: form.locality.value})})
+      const profileId = current.id || undefined;
+      fetch(`${window.PHIR_API_BASE || ''}/api/demo/profiles`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({...(profileId ? {id: profileId} : {}), role, name: form.name.value.trim(), locality: form.locality.value})})
         .then(response => response.json().then(body => ({response, body})))
         .then(({response, body}) => { if (!response.ok) throw new Error(body?.error?.message || 'Could not save profile.'); identity.set(role, body); location.reload(); })
         .catch(error => { submit.disabled = false; const message = document.createElement('p'); message.className = 'phir-identity-error'; message.textContent = error.message; form.prepend(message); });
