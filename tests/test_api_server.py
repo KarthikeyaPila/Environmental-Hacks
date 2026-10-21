@@ -1,5 +1,4 @@
 import json
-import base64
 import threading
 import unittest
 from http.client import HTTPConnection
@@ -67,7 +66,7 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(status, 201)
         status, reserved = self.call("GET", "/api/recyclers/recycler_1/available-material")
         self.assertEqual(status, 200)
-        self.assertEqual(reserved["availableMaterial"], [{"kabadiwalaId": pet["kabadiwalaId"], "kabadiwalaName": "Ramesh Recovery", "region": "West", "regionId": "area_west", "materialType": "pet", "quantityKg": 1.0}, {"kabadiwalaId": pet["kabadiwalaId"], "kabadiwalaName": "Ramesh Recovery", "region": "West", "regionId": "area_west", "materialType": "cardboard", "quantityKg": 2}])
+        self.assertEqual(reserved["availableMaterial"], [{"kabadiwalaId": pet["kabadiwalaId"], "kabadiwalaName": "Ramesh Recovery", "region": "West", "regionId": "area_west", "materialType": "pet", "quantityKg": 1.0, "isDemo": True}, {"kabadiwalaId": pet["kabadiwalaId"], "kabadiwalaName": "Ramesh Recovery", "region": "West", "regionId": "area_west", "materialType": "cardboard", "quantityKg": 2, "isDemo": True}])
 
         status, confirmed = self.call("POST", f"/api/bookings/{booking['id']}/confirm", {"recyclerId": "recycler_1"})
         self.assertEqual(status, 200)
@@ -89,29 +88,24 @@ class ApiServerTests(unittest.TestCase):
     def test_http_mock_image_classification_is_deterministic(self):
         status, result = self.call("POST", "/api/classify-image", {"filename": "plastic-bottle.jpg"})
         self.assertEqual(status, 200)
-        self.assertEqual(result["mode"], "mock")
+        self.assertEqual(result["mode"], "demo")
         self.assertEqual(result["detections"][0]["materialType"], "pet")
-        self.assertFalse(result["detections"][0]["requiresConfirmation"])
+        self.assertTrue(result["detections"][0]["requiresConfirmation"])
 
-    def test_http_image_classification_uses_aws_when_configured(self):
+    def test_http_image_classification_stays_demo_when_aws_is_configured(self):
         original_arn = api_server.os.environ.get("REKOGNITION_MODEL_ARN")
-        original_classifier = api_server.classify_with_rekognition
         api_server.os.environ["REKOGNITION_MODEL_ARN"] = "arn:model"
-        api_server.classify_with_rekognition = lambda image: {
-            "detections": [{"materialType": "glass", "confidence": 0.95, "requiresConfirmation": False}],
-            "mode": "aws",
-        }
         try:
-            status, result = self.call("POST", "/api/classify-image", {"imageBase64": base64.b64encode(b"image").decode()})
+            status, result = self.call("POST", "/api/classify-image", {"filename": "glass-photo.jpg"})
         finally:
-            api_server.classify_with_rekognition = original_classifier
             if original_arn is None:
                 api_server.os.environ.pop("REKOGNITION_MODEL_ARN", None)
             else:
                 api_server.os.environ["REKOGNITION_MODEL_ARN"] = original_arn
         self.assertEqual(status, 200)
-        self.assertEqual(result["mode"], "aws")
+        self.assertEqual(result["mode"], "demo")
         self.assertEqual(result["detections"][0]["materialType"], "glass")
+        self.assertTrue(result["detections"][0]["requiresConfirmation"])
 
     def test_http_exposes_booking_history(self):
         _, request = self.call("POST", "/api/collection-requests", {"householdId": "household_1"})
@@ -134,13 +128,65 @@ class ApiServerTests(unittest.TestCase):
         self.assertEqual(status, 201)
         status, inventory = self.call("GET", "/api/households/household_2/inventory")
         self.assertEqual(status, 200)
-        self.assertIn({"materialType": "wood", "quantityKg": 0.77, "estimatedValueInr": 0}, inventory["inventory"])
+        stored = next(item for item in inventory["inventory"] if item["id"] == material["id"])
+        self.assertEqual(stored["materialType"], "wood")
+        self.assertEqual(stored["quantityKg"], 0.77)
+
+        # Two records of the same type retain separate IDs so a card's delete
+        # action removes exactly the record that was clicked.
+        _, second = self.call("POST", "/api/materials", {"userId": "household_2", "materialType": "wood", "quantityKg": 1.25})
+        _, inventory = self.call("GET", "/api/households/household_2/inventory")
+        self.assertEqual({item["id"] for item in inventory["inventory"] if item["materialType"] == "wood"} & {material["id"], second["id"]}, {material["id"], second["id"]})
 
         status, _ = self.call("DELETE", f"/api/materials/{material['id']}", {"userId": "household_2"})
         self.assertEqual(status, 200)
         status, inventory = self.call("GET", "/api/households/household_2/inventory")
         self.assertEqual(status, 200)
-        self.assertNotIn({"materialType": "wood", "quantityKg": 0.77, "estimatedValueInr": 0}, inventory["inventory"])
+        self.assertNotIn(material["id"], {item["id"] for item in inventory["inventory"]})
+        self.assertIn(second["id"], {item["id"] for item in inventory["inventory"]})
+
+    def test_new_collector_profile_receives_labeled_demo_workflow(self):
+        status, profile = self.call("POST", "/api/demo/profiles", {"role": "kabadiwala", "name": "Test Collector", "locality": "North West"})
+        self.assertEqual(status, 201)
+        collector_id = profile["id"]
+
+        status, result = self.call("GET", f"/api/kabadiwalas/{collector_id}/requests")
+        self.assertEqual(status, 200)
+        self.assertEqual({item["status"] for item in result["requests"]}, {"pending", "accepted", "collected"})
+        self.assertTrue(all(item["isDemo"] for item in result["requests"]))
+
+        status, inventory = self.call("GET", f"/api/kabadiwalas/{collector_id}/inventory")
+        self.assertEqual(status, 200)
+        self.assertTrue(any(item["status"] == "reserved" and item["isDemo"] for item in inventory["inventory"]))
+
+        status, metrics = self.call("GET", f"/api/kabadiwalas/{collector_id}/metrics")
+        self.assertEqual(status, 200)
+        self.assertGreater(metrics["reservedForTransferKg"], 0)
+
+    def test_new_recycler_profile_has_private_empty_workspace(self):
+        status, profile = self.call("POST", "/api/demo/profiles", {
+            "role": "recycler", "name": "North Star Recycling", "locality": "North East",
+            "contact": "hello@northstar.example",
+        })
+        self.assertEqual(status, 201)
+        recycler_id = profile["id"]
+        self.assertNotEqual(recycler_id, "recycler_1")
+        self.assertFalse(profile["isDemo"])
+        self.assertEqual(profile["contact"], "hello@northstar.example")
+
+        status, requirements = self.call("GET", f"/api/recyclers/{recycler_id}/requirements")
+        self.assertEqual(status, 200)
+        self.assertEqual(requirements["requirements"], [])
+        status, bookings = self.call("GET", f"/api/recyclers/{recycler_id}/bookings")
+        self.assertEqual(status, 200)
+        self.assertEqual(bookings["bookings"], [])
+
+    def test_new_recycler_contact_is_optional(self):
+        status, profile = self.call("POST", "/api/demo/profiles", {
+            "role": "recycler", "name": "Local Materials Co", "locality": "West",
+        })
+        self.assertEqual(status, 201)
+        self.assertEqual(profile["contact"], "")
 
 
 if __name__ == "__main__":

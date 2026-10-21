@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import json
 import os
-import base64
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
@@ -19,7 +18,6 @@ except ImportError:  # boto3 is optional for local mock mode
         pass
 
 from .area_opportunities import AreaOpportunityService, DELHI_AREAS
-from .image_classifier import classify_s3_object, classify_with_rekognition
 from .image_storage import create_upload, delete_upload
 from .route_planner import plan_preview
 from .recovery_domain import Profile, RecoveryService, RequestStatus, RequirementStatus, Role, new_id
@@ -30,36 +28,43 @@ ROOT = Path(__file__).resolve().parent.parent
 
 def build_state(with_demo_requests: bool = False) -> tuple[RecoveryService, AreaOpportunityService]:
     service = RecoveryService()
+    area_service = AreaOpportunityService()
     areas = {area.name: area for area in DELHI_AREAS}
     household_names = [
         "Asha Verma", "Bharat Singh", "Chitra Rao", "Deepak Sharma", "Esha Mehta", "Farhan Khan",
         "Gauri Nair", "Harish Gupta", "Ishita Jain", "Jatin Kapoor", "Kavita Das", "Lokesh Yadav",
         "Meena Iyer", "Nikhil Batra", " पूजा Shah", "Ravi Menon", "Sara Thomas", "Tarun Bose",
         "Uma Sethi", "Vikram Joshi", "Wafa Ali", "Yash Malhotra", "Zoya Sen", "Anil Roy",
+        "Aarav Kapoor", "Bhavna Malik", "Charu Bansal", "Dev Arora", "Ekta Suri", "Faisal Khan",
+        "Gia Khanna", "Himanshu Jain", "Ira Mehta", "Jai Bhatia", "Kiran Sood", "Leena Paul",
+        "Manav Kohli", "Naina Seth", "Om Prakash", "Pari Nanda", "Rohan Gill", "Simran Kaur",
+        "Tanya Bedi", "Uday Chopra", "Vani Rao",
     ]
-    household_regions = ["North West", "West", "South West", "Central", "South", "South East"]
+    household_regions = [area.name for area in DELHI_AREAS]
     for index, name in enumerate(household_names, start=1):
         area = areas[household_regions[(index - 1) % len(household_regions)]]
         latitude, longitude = area.center_latitude, area.center_longitude
         if index == 1:
             latitude, longitude = 28.7042, 77.1024
-        service.add_profile(Profile(f"household_{index}", Role.HOUSEHOLD, name, latitude, longitude, locality=area.name))
+        service.add_profile(Profile(f"household_{index}", Role.HOUSEHOLD, name, latitude, longitude, locality=area.name, is_demo=True))
 
     kabadiwalas = [
         ("Ramesh Recovery", "West", {"pet", "cardboard", "paper", "aluminium", "glass", "wood"}),
         ("Farida Collection", "West", {"pet", "cardboard", "paper", "glass"}),
         ("Suresh Kabadi Network", "Central", {"pet", "paper", "aluminium", "glass"}),
         ("Lakshmi Materials", "South", {"pet", "cardboard", "paper", "aluminium", "wood"}),
+        ("Yamuna Circular Collectives", "North East", {"pet", "cardboard", "paper", "aluminium", "glass"}),
+        ("Green Lane Recovery", "South West", {"pet", "cardboard", "paper", "aluminium", "wood"}),
     ]
     for index, (name, region, materials) in enumerate(kabadiwalas, start=1):
         area = areas[region]
-        service.add_profile(Profile(f"kabadiwala_{index}", Role.KABADIWALA, name, area.center_latitude, area.center_longitude, 25, materials, 4.5 + index / 10, 1 + index / 20, locality=region))
+        service.add_profile(Profile(f"kabadiwala_{index}", Role.KABADIWALA, name, area.center_latitude, area.center_longitude, 25, materials, 4.5 + index / 10, 1 + index / 20, locality=region, is_demo=True))
 
     recycler_names = ["GreenCycle Delhi", "ReForm Plastics", "Nayi Disha Paper", "MetalLoop India", "GlassRoot Works", "Urban Fibre Co", "Bharat Materials", "Circular Carton", "CleanCast Industries"]
     recycler_materials = ["pet", "paper", "cardboard", "aluminium", "glass", "paper", "pet", "cardboard", "aluminium"]
     for index, name in enumerate(recycler_names, start=1):
         area = DELHI_AREAS[(index + 2) % len(DELHI_AREAS)]
-        service.add_profile(Profile(f"recycler_{index}", Role.RECYCLER, name, area.center_latitude, area.center_longitude, locality=area.name, contact=f"materials{index}@demo-recycler.in"))
+        service.add_profile(Profile(f"recycler_{index}", Role.RECYCLER, name, area.center_latitude, area.center_longitude, locality=area.name, contact=f"materials{index}@demo-recycler.in", is_demo=True))
 
     material_types = ["pet", "cardboard", "paper", "aluminium", "glass", "wood"]
     for index in range(1, 25):
@@ -70,10 +75,59 @@ def build_state(with_demo_requests: bool = False) -> tuple[RecoveryService, Area
         service.add_material(household_id, material_types[index % len(material_types)], second_quantity)
         if with_demo_requests and index > 1:
             request = service.create_collection_request(household_id, [first.id])
-            if index % 4 == 0:
+            if index in {4, 8, 16, 20}:
                 service.accept_request(f"kabadiwala_{((index // 2) % 4) + 1}", request.id)
-            if index % 8 == 0:
+            if index in {8, 16}:
                 service.collect_request(request.assigned_kabadiwala_id, request.id)
+
+    # Keep the map useful as a demo: every displayed Delhi region should have
+    # at least four open opportunities, regardless of the regular seed mix.
+    if with_demo_requests:
+        open_by_area = {area.id: 0 for area in DELHI_AREAS}
+        for request in service.requests.values():
+            if request.status != RequestStatus.PENDING:
+                continue
+            area = area_service.area_for(request.latitude, request.longitude)
+            if area:
+                open_by_area[area.id] = open_by_area.get(area.id, 0) + 1
+        for area_index, area in enumerate(DELHI_AREAS):
+            target_open = 3 + ((area_index * 7 + 1) % 4)  # deterministic 3–6 range
+            slot = 1
+            while open_by_area.get(area.id, 0) < target_open:
+                profile_id = f"demo_household_{area.id}_{slot}"
+                if profile_id in service.profiles:
+                    slot += 1
+                    continue
+                profile = Profile(profile_id, Role.HOUSEHOLD, f"Demo household · {area.name} {slot}", area.center_latitude, area.center_longitude, locality=area.name, is_demo=True)
+                service.add_profile(profile)
+                material = service.add_material(profile_id, "pet" if slot % 2 else "cardboard", 2.5 + slot)
+                service.create_collection_request(profile_id, [material.id])
+                open_by_area[area.id] = open_by_area.get(area.id, 0) + 1
+                slot += 1
+
+        # Seed traceable recovered stock for every demo kabadiwala. Each lot
+        # follows the same household -> request -> accepted -> collected flow
+        # as the live workflow, so it appears in recycler marketplace data.
+        stock_materials = ("pet", "cardboard", "paper", "aluminium", "glass", "wood")
+        for collector_index in range(1, len(kabadiwalas) + 1):
+            collector_id = f"kabadiwala_{collector_index}"
+            collector = service.profiles[collector_id]
+            area = areas[collector.locality]
+            for slot in range(4):
+                material_type = stock_materials[(collector_index + slot - 1) % len(stock_materials)]
+                household_id = f"demo_stock_household_{collector_index}_{slot + 1}"
+                household = Profile(
+                    household_id, Role.HOUSEHOLD,
+                    f"Demo stock household · {area.name} {slot + 1}",
+                    area.center_latitude, area.center_longitude,
+                    locality=area.name, is_demo=True,
+                )
+                service.add_profile(household)
+                quantity_kg = round(4 + collector_index + slot * 1.5, 2)
+                material = service.add_material(household_id, material_type, quantity_kg)
+                request = service.create_collection_request(household_id, [material.id])
+                service.accept_request(collector_id, request.id)
+                service.collect_request(collector_id, request.id)
 
     if with_demo_requests:
         for index in range(1, 10):
@@ -81,7 +135,54 @@ def build_state(with_demo_requests: bool = False) -> tuple[RecoveryService, Area
             if index % 3 == 0:
                 requirement.fulfilled_quantity_kg = requirement.required_quantity_kg
                 requirement.status = RequirementStatus.FULFILLED
-    return service, AreaOpportunityService()
+    return service, area_service
+
+
+def add_demo_collector_activity(service: RecoveryService, collector: Profile, area) -> None:
+    """Give a newly-created demo collector a small, clearly-marked workflow."""
+    examples = (
+        ("pending", [("pet", 8.5)]),
+        ("accepted", [("cardboard", 5.0)]),
+        ("collected", [("pet", 7.0), ("paper", 4.0), ("aluminium", 2.5)]),
+    )
+    for stage, materials in examples:
+        household_id = f"demo_household_{collector.id}_{stage}"
+        household = Profile(
+            household_id, Role.HOUSEHOLD, f"Demo household · {area.name} · {stage.title()}",
+            area.center_latitude, area.center_longitude, locality=area.name, is_demo=True,
+        )
+        service.add_profile(household)
+        material_ids = [service.add_material(household_id, kind, quantity).id for kind, quantity in materials]
+        request = service.create_collection_request(household_id, material_ids)
+        if stage in {"accepted", "collected"}:
+            service.accept_request(collector.id, request.id)
+        if stage == "collected":
+            service.collect_request(collector.id, request.id)
+
+    # Reserve a small part of the new demo inventory against an existing open
+    # recycler requirement where one is available. This makes the transfer
+    # stage visible without inventing an unbacked UI-only metric.
+    available_types = {kind for _, materials in examples for kind, _ in materials}
+    has_matching_requirement = any(
+        requirement.status != RequirementStatus.FULFILLED
+        and requirement.material_type in available_types
+        and requirement.required_quantity_kg - requirement.fulfilled_quantity_kg >= max(requirement.minimum_quantity_kg, 2.0)
+        for requirement in service.requirements.values()
+    )
+    if not has_matching_requirement:
+        recycler = next((profile for profile in service.profiles.values() if profile.role == Role.RECYCLER), None)
+        if recycler:
+            service.create_requirement(recycler.id, "pet", 10.0, 2.0)
+    for requirement in service.requirements.values():
+        if requirement.status == RequirementStatus.FULFILLED or requirement.material_type not in available_types:
+            continue
+        remaining = requirement.required_quantity_kg - requirement.fulfilled_quantity_kg
+        if remaining >= max(requirement.minimum_quantity_kg, 2.0):
+            try:
+                service.book_material(requirement.recycler_id, requirement.id, collector.id, 2.0)
+                break
+            except ValueError:
+                continue
 
 
 repository = None
@@ -189,6 +290,9 @@ class DemoHandler(SimpleHTTPRequestHandler):
                     if r.status == RequestStatus.PENDING
                     or r.assigned_kabadiwala_id == kabadiwala_id
                 ]
+                # Live user requests take priority over seeded demo activity;
+                # newest requests remain first within each group.
+                requests.sort(key=lambda r: (r.is_demo, r.created_at))
                 return self._send_json({"requests": [_request_json(r) for r in requests]})
             if len(parts) == 4 and parts[:2] == ["api", "households"] and parts[3] in {"inventory", "collection-request", "metrics", "profile"}:
                 household_id = parts[2]
@@ -233,6 +337,8 @@ class DemoHandler(SimpleHTTPRequestHandler):
         payload = self._body()
         try:
             if path == "/api/demo/reset":
+                if repository is not None:
+                    repository.clear()
                 service, area_service = build_state(with_demo_requests=True)
                 return self._send_json({"ok": True})
             if path == "/api/demo/profiles":
@@ -252,31 +358,28 @@ class DemoHandler(SimpleHTTPRequestHandler):
                 if not profile:
                     profile_id = new_id(role.value)
                     if role == Role.HOUSEHOLD:
-                        profile = Profile(profile_id, role, name, area.center_latitude, area.center_longitude, locality=locality)
+                        profile = Profile(profile_id, role, name, area.center_latitude, area.center_longitude, locality=locality, is_demo=False)
                     elif role == Role.KABADIWALA:
-                        profile = Profile(profile_id, role, name, area.center_latitude, area.center_longitude, 25, {"pet", "cardboard", "paper", "aluminium", "glass", "wood"}, 4.5, 1.0, locality=locality)
+                        profile = Profile(profile_id, role, name, area.center_latitude, area.center_longitude, 25, {"pet", "cardboard", "paper", "aluminium", "glass", "wood"}, 4.5, 1.0, locality=locality, is_demo=False)
                     else:
-                        profile = Profile(profile_id, role, name, area.center_latitude, area.center_longitude, locality=locality, contact=f"{profile_id}@demo-recycler.in")
+                        profile = Profile(profile_id, role, name, area.center_latitude, area.center_longitude, locality=locality, contact=str(payload.get("contact", "")).strip(), is_demo=False)
                     service.add_profile(profile)
+                    if role == Role.KABADIWALA:
+                        add_demo_collector_activity(service, profile, area)
                 else:
                     profile.name = name
                     profile.locality = locality
                     profile.latitude = area.center_latitude
                     profile.longitude = area.center_longitude
+                    if role == Role.RECYCLER and "contact" in payload:
+                        profile.contact = str(payload.get("contact", "")).strip()
                 return self._send_json(service.profile_summary(profile.id), 201 if created else 200)
             if path == "/api/materials":
                 material = service.add_material(payload["userId"], payload["materialType"], float(payload["quantityKg"]))
                 return self._send_json(_material_json(material), 201)
             if path == "/api/classify-image":
-                s3_key = payload.get("s3Key")
-                if s3_key and os.getenv("REKOGNITION_MODEL_ARN"):
-                    result = classify_s3_object(os.getenv("ML_S3_BUCKET", "environmental-recovery-ml-132218943520"), s3_key)
-                    delete_upload(os.getenv("ML_S3_BUCKET", "environmental-recovery-ml-132218943520"), s3_key)
-                    return self._send_json(result)
-                image_base64 = payload.get("imageBase64")
-                if image_base64 and os.getenv("REKOGNITION_MODEL_ARN"):
-                    image_bytes = base64.b64decode(image_base64, validate=True)
-                    return self._send_json(classify_with_rekognition(image_bytes))
+                # Keep the demo path local and free: a configured model ARN must
+                # never silently turn a demo photo into a billable inference.
                 return self._send_json(_mock_classification(payload.get("filename", "")))
             if path == "/api/image-upload":
                 content_type = payload.get("contentType")
@@ -319,7 +422,7 @@ class DemoHandler(SimpleHTTPRequestHandler):
                 profile.name = str(payload.get("name", profile.name)).strip() or profile.name
                 profile.locality = str(payload.get("locality", getattr(profile, "locality", "Delhi"))).strip() or "Delhi"
                 profile.contact = str(payload.get("contact", getattr(profile, "contact", ""))).strip()
-                return self._send_json({"id": profile.id, "role": profile.role.value, "name": profile.name, "locality": profile.locality, "contact": profile.contact})
+                return self._send_json(service.profile_summary(profile.id))
             if path == "/api/bookings":
                 booking = service.book_material(payload["recyclerId"], payload["requirementId"], payload["kabadiwalaId"], float(payload["quantityKg"]))
                 return self._send_json(_booking_json(booking), 201)
@@ -365,18 +468,20 @@ def _material_json(material) -> dict:
 
 
 def _mock_classification(filename: str) -> dict:
-    """Deterministic local stand-in for Rekognition Custom Labels."""
+    """Return a clearly marked, deterministic demo suggestion without vision."""
     name = filename.lower()
-    guesses = [("cardboard", 0.91), ("paper", 0.88), ("aluminium", 0.9), ("glass", 0.86), ("pet", 0.92)]
-    material, confidence = next(((label, score) for label, score in guesses if label in name or (label == "pet" and "plastic" in name)), ("other", 0.42))
-    return {"detections": [{"materialType": material, "confidence": confidence, "requiresConfirmation": confidence < 0.8 or material == "other"}], "mode": "mock"}
+    materials = ["pet", "cardboard", "paper", "aluminium", "glass"]
+    material = next((label for label in materials if label in name or (label == "pet" and "plastic" in name)), None)
+    if material is None:
+        material = materials[sum(name.encode("utf-8")) % len(materials)] if name else "paper"
+    return {"detections": [{"materialType": material, "requiresConfirmation": True}], "mode": "demo"}
 
 
 def _request_json(request) -> dict:
     if request is None:
         return None
     region = area_service.area_for(request.latitude, request.longitude)
-    return {"id": request.id, "status": request.status.value, "estimatedValueInr": round(request.estimated_value), "quantityByType": request.quantity_by_type, "assignedKabadiwalaId": request.assigned_kabadiwala_id, "region": region.name, "regionId": region.id}
+    return {"id": request.id, "status": request.status.value, "isDemo": request.is_demo, "estimatedValueInr": round(request.estimated_value), "quantityByType": request.quantity_by_type, "assignedKabadiwalaId": request.assigned_kabadiwala_id, "region": region.name, "regionId": region.id}
 
 
 def _requirement_json(requirement) -> dict:
@@ -390,25 +495,38 @@ def _booking_json(booking) -> dict:
 def _available_json(item) -> dict:
     holder = service.profiles.get(item["kabadiwala_id"])
     region = area_service.area_for(holder.latitude, holder.longitude) if holder else None
-    return {"kabadiwalaId": item["kabadiwala_id"], "kabadiwalaName": holder.name if holder else item["kabadiwala_id"], "region": region.name if region else "Delhi", "regionId": region.id if region else None, "materialType": item["material_type"], "quantityKg": item["quantity_kg"]}
+    return {"kabadiwalaId": item["kabadiwala_id"], "kabadiwalaName": holder.name if holder else item["kabadiwala_id"], "region": region.name if region else "Delhi", "regionId": region.id if region else None, "materialType": item["material_type"], "quantityKg": item["quantity_kg"], "isDemo": bool(item.get("is_demo", True))}
 
 
 def _inventory(holder_id: str) -> list[dict]:
     grouped = {}
     for material in service.materials.values():
-        if material.current_holder_id == holder_id and material.status == "collected":
-            grouped[material.material_type] = grouped.get(material.material_type, 0) + material.quantity_kg
-    return [{"materialType": material_type, "quantityKg": round(quantity, 3)} for material_type, quantity in grouped.items()]
+        if material.current_holder_id != holder_id or material.status not in {"collected", "reserved"}:
+            continue
+        source = service.profiles.get(material.source_id)
+        key = (material.material_type, material.status, bool(source and source.is_demo))
+        grouped[key] = grouped.get(key, 0) + material.quantity_kg
+    return [
+        {"materialType": material_type, "quantityKg": round(quantity, 3), "status": status, "isDemo": is_demo}
+        for (material_type, status, is_demo), quantity in grouped.items()
+    ]
 
 
 def _household_inventory(household_id: str) -> list[dict]:
-    grouped = {}
-    for material in service.materials.values():
-        if material.source_id == household_id and material.status in {"available", "requested"}:
-            grouped.setdefault(material.material_type, {"quantityKg": 0, "estimatedValueInr": 0})
-            grouped[material.material_type]["quantityKg"] += material.quantity_kg
-            grouped[material.material_type]["estimatedValueInr"] += material.estimated_value
-    return [{"materialType": t, "quantityKg": round(v["quantityKg"], 3), "estimatedValueInr": round(v["estimatedValueInr"])} for t, v in grouped.items()]
+    # Keep record IDs in the response: the household UI edits/deletes each
+    # material record individually, so grouping by type makes those actions
+    # target an undefined ID (and the API then reports "material not found").
+    return [
+        {
+            "id": material.id,
+            "materialType": material.material_type,
+            "quantityKg": round(material.quantity_kg, 3),
+            "estimatedValueInr": round(material.estimated_value),
+            "status": material.status,
+        }
+        for material in service.materials.values()
+        if material.source_id == household_id and material.status in {"available", "requested"}
+    ]
 
 
 if __name__ == "__main__":

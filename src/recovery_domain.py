@@ -68,6 +68,7 @@ class Profile:
     payout_index: float = 1.0
     locality: str = "Delhi"
     contact: str = ""
+    is_demo: bool = False
 
 
 @dataclass
@@ -97,6 +98,7 @@ class CollectionRequest:
     assigned_kabadiwala_id: Optional[str] = None
     created_at: str = field(default_factory=now)
     updated_at: str = field(default_factory=now)
+    is_demo: bool = False
 
 
 @dataclass
@@ -193,6 +195,7 @@ class RecoveryService:
             id=new_id("req"), household_id=household_id, material_ids=material_ids,
             quantity_by_type=quantity_by_type, estimated_value=round(sum(r.estimated_value for r in records), 2),
             latitude=household.latitude, longitude=household.longitude,
+            is_demo=household.is_demo,
         )
         for record in records:
             record.status = "requested"
@@ -260,13 +263,14 @@ class RecoveryService:
 
     def available_material(self, recycler_id: str) -> list[dict]:
         self._require_role(recycler_id, Role.RECYCLER)
-        inventory: dict[tuple[str, str], float] = {}
+        inventory: dict[tuple[str, str, bool], float] = {}
         for material in self.materials.values():
             holder = self.profiles.get(material.current_holder_id)
             if material.status == "collected" and holder and holder.role == Role.KABADIWALA:
-                key = (holder.id, material.material_type)
+                source = self.profiles.get(material.source_id)
+                key = (holder.id, material.material_type, bool(source and source.is_demo))
                 inventory[key] = inventory.get(key, 0) + material.quantity_kg
-        return [{"kabadiwala_id": k, "material_type": t, "quantity_kg": round(q, 3)} for (k, t), q in inventory.items()]
+        return [{"kabadiwala_id": k, "material_type": t, "quantity_kg": round(q, 3), "is_demo": is_demo} for (k, t, is_demo), q in inventory.items()]
 
     def book_material(self, recycler_id: str, requirement_id: str, kabadiwala_id: str, quantity_kg: float) -> Booking:
         self._require_role(recycler_id, Role.RECYCLER)
@@ -362,12 +366,15 @@ class RecoveryService:
         records = [m for m in self.materials.values() if m.current_holder_id == kabadiwala_id and m.status in {"collected", "reserved"}]
         by_type = _sum_by_type(records)
         requests = [r for r in self.requests.values() if r.assigned_kabadiwala_id == kabadiwala_id]
+        bookings = [b for b in self.bookings.values() if b.kabadiwala_id == kabadiwala_id]
         return {
             "requestsAccepted": sum(r.status in {RequestStatus.ACCEPTED, RequestStatus.COLLECTED} for r in requests),
             "collectionsCompleted": sum(r.status == RequestStatus.COLLECTED for r in requests),
             "totalCollectedKg": round(sum(m.quantity_kg for m in records), 3),
             "estimatedRevenueInr": round(sum(m.estimated_value for m in records)),
             "byMaterialType": by_type,
+            "reservedForTransferKg": round(sum(b.quantity_kg for b in bookings if b.status == BookingStatus.CONFIRMED), 3),
+            "transferredToRecyclersKg": round(sum(b.quantity_kg for b in bookings if b.status == BookingStatus.COMPLETED), 3),
             "demoRating": profile.demo_rating,
             "payoutIndex": profile.payout_index,
         }
@@ -376,7 +383,7 @@ class RecoveryService:
         profile = self.profiles.get(profile_id)
         if not profile:
             raise ValueError("profile not found")
-        summary = {"id": profile.id, "role": profile.role.value, "name": profile.name, "locality": profile.locality, "contact": profile.contact}
+        summary = {"id": profile.id, "role": profile.role.value, "name": profile.name, "locality": profile.locality, "contact": profile.contact, "isDemo": profile.is_demo}
         if profile.role == Role.KABADIWALA:
             summary.update({"demoRating": profile.demo_rating, "payoutIndex": profile.payout_index, "supportedMaterials": sorted(profile.supported_materials)})
         return summary

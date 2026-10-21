@@ -26,6 +26,8 @@ def main() -> None:
         "kabadiwalas": sum(profile.role.value == "kabadiwala" for profile in service.profiles.values()),
         "recyclers": sum(profile.role.value == "recycler" for profile in service.profiles.values()),
         "materials": len(service.materials),
+        "availableInventoryLots": len(service.available_material("recycler_1")),
+        "availableInventoryKg": round(sum(item["quantity_kg"] for item in service.available_material("recycler_1")), 2),
         "collectionRequests": len(service.requests),
         "requestStatuses": {status.value: sum(request.status == status for request in service.requests.values()) for status in type(next(iter(service.requests.values())).status)},
         "requirements": len(service.requirements),

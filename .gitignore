@@ -16,3 +16,4 @@ build/
 *.egg-info/
 ml/data/
 ml/models/
+/assets/demo/Phir_Hackathon_Vox_V9.mp4

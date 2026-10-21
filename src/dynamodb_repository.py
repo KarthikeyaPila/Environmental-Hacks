@@ -125,11 +125,13 @@ class DynamoRecoveryRepository:
         for item in items:
             kind = item.get("sk")
             if kind == "PROFILE":
-                service.profiles[item["id"]] = Profile(item["id"], Role(item["role"]), item["name"], float(item["latitude"]), float(item["longitude"]), float(item.get("service_radius_km", 0)), set(item.get("supported_materials", [])), float(item.get("demo_rating", 0)), float(item.get("payout_index", 1)), item.get("locality", "Delhi"), item.get("contact", ""))
+                is_demo = bool(item.get("is_demo", item["id"].startswith(("household_", "kabadiwala_", "recycler_"))))
+                service.profiles[item["id"]] = Profile(item["id"], Role(item["role"]), item["name"], float(item["latitude"]), float(item["longitude"]), float(item.get("service_radius_km", 0)), set(item.get("supported_materials", [])), float(item.get("demo_rating", 0)), float(item.get("payout_index", 1)), item.get("locality", "Delhi"), item.get("contact", ""), is_demo)
             elif kind == "MATERIAL":
                 service.materials[item["id"]] = MaterialRecord(item["id"], item["material_type"], float(item["quantity_kg"]), float(item["estimated_value"]), item["source_id"], item["current_holder_id"], item.get("status", "available"), item.get("destination_id"), item["created_at"], item["updated_at"])
             elif kind == "REQUEST":
-                service.requests[item["id"]] = CollectionRequest(item["id"], item["household_id"], list(item["material_ids"]), {key: float(value) for key, value in item["quantity_by_type"].items()}, float(item["estimated_value"]), float(item["latitude"]), float(item["longitude"]), RequestStatus(item["status"]), item.get("assigned_kabadiwala_id"), item["created_at"], item["updated_at"])
+                is_demo = bool(item.get("is_demo", item["household_id"].startswith("household_")))
+                service.requests[item["id"]] = CollectionRequest(item["id"], item["household_id"], list(item["material_ids"]), {key: float(value) for key, value in item["quantity_by_type"].items()}, float(item["estimated_value"]), float(item["latitude"]), float(item["longitude"]), RequestStatus(item["status"]), item.get("assigned_kabadiwala_id"), item["created_at"], item["updated_at"], is_demo)
             elif kind == "REQUIREMENT":
                 service.requirements[item["id"]] = RecyclerRequirement(item["id"], item["recycler_id"], item["material_type"], float(item["required_quantity_kg"]), float(item.get("minimum_quantity_kg", 0)), float(item.get("fulfilled_quantity_kg", 0)), RequirementStatus(item["status"]), item["created_at"], item["updated_at"])
             elif kind == "BOOKING":

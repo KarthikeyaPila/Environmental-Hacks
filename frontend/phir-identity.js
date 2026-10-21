@@ -15,7 +15,9 @@
   };
   const handedOffProfile = role => {
     const id = urlProfile(role);
-    return id ? {id, name: 'Your profile', role} : null;
+    if (!id) return null;
+    const saved = selected[role]?.id === id ? selected[role] : sessionProfile(role);
+    return {id, name: saved?.name || 'Your profile', locality: saved?.locality, role};
   };
 
   const roleForView = () => {
@@ -83,18 +85,47 @@
       const submit = form.querySelector('button[type="submit"]');
       submit.disabled = true;
       const profileId = current.id || undefined;
+      submit.textContent = 'Saving profile…';
       fetch(`${window.PHIR_API_BASE || ''}/api/demo/profiles`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({...(profileId ? {id: profileId} : {}), role, name: form.name.value.trim(), locality: form.locality.value})})
         .then(response => response.json().then(body => ({response, body})))
-        .then(({response, body}) => { if (!response.ok) throw new Error(body?.error?.message || 'Could not save profile.'); identity.set(role, body); const next = new URL(location.href); next.searchParams.set('profile', body.id); next.searchParams.set('profileRole', role); location.replace(next.toString()); })
-        .catch(error => { submit.disabled = false; const message = document.createElement('p'); message.className = 'phir-identity-error'; message.textContent = error.message; form.prepend(message); });
+        .then(({response, body}) => {
+          if (!response.ok) throw new Error(body?.error?.message || 'Could not save profile.');
+          identity.set(role, body);
+          const next = new URL(location.href);
+          next.searchParams.set('profile', body.id);
+          next.searchParams.set('profileRole', role);
+          history.replaceState(history.state, '', next.toString());
+          close();
+          install();
+          window.phirLiveStatus?.('Profile ready');
+          window.dispatchEvent(new CustomEvent('phir-profile-updated', {detail: {role, profile: body}}));
+        })
+        .catch(error => {
+          submit.disabled = false;
+          submit.textContent = 'Continue';
+          const message = document.createElement('p');
+          message.className = 'phir-identity-error';
+          message.textContent = error.message;
+          form.prepend(message);
+        });
     };
   }
   window.phirOpenIdentityPicker = openPicker;
 
   function install() {
+    // The workspace is rendered locally before the API hydration finishes.
+    // Reveal that cached view immediately so a failed/slow recycler request
+    // cannot strand the user behind the live-workspace loading veil.
+    window.phirMarkWorkspaceReady?.();
     const role = roleForView();
     const links = document.querySelector('#app .workspace .top-links');
     if (!role || !links) return;
+    // Recycler companies manage their identity from the Company profile tab.
+    // Do not show the household/kabadiwala lightweight profile prompt here.
+    if (role === 'recycler') {
+      links.querySelector('.phir-account-button')?.remove();
+      return;
+    }
     let button = links.querySelector('.phir-account-button');
     if (!button) {
       button = document.createElement('button');

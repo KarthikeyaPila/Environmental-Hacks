@@ -4,6 +4,57 @@ This document is written for the next ChatGPT/Codex conversation. Read it fully
 before changing anything. The goal is to continue the project with the same
 context, product judgment, and implementation style established so far.
 
+## Latest handoff — 12 October 2026
+
+### Repository and deployment status update
+
+- The judges subsequently reported HTTP 500 responses from deployed data
+  endpoints; only the mock classify endpoint responded during their review.
+  Treat the deployed data workflow described below as historical/unverified
+  until the deployed Lambda artifact and API are inspected and smoke-tested.
+- The judges also found that the deployed frontend bundle did not match the
+  repository source. Deployment provenance needs to be re-established before
+  claiming the live site reflects this checkout.
+- The DynamoDB repository currently reads and rewrites a table snapshot for
+  mutations. This is a known correctness/scaling concern; targeted writes or
+  transactions have not yet replaced it.
+- Local `./scripts/run_demo.sh` is an AWS-free in-memory demo of the simple
+  `demo/` client. It does not run the stylized frontend, persist across restarts,
+  or invoke Rekognition by default. See the root README for the current setup.
+
+- Live frontend: <https://main.d3hgpobebqphe1.amplifyapp.com/>
+- Historical Amplify deployment record: job `96`, status `SUCCEED` at the time
+  of that deployment (app `d3hgpobebqphe1`,
+  branch `main`, region `ap-south-1`).
+- The live page now uses staged external assets. Root HTML is `367,099` bytes
+  (previously `41,550,432` bytes), with all 44 original media files extracted
+  byte-for-byte into content-hashed paths (`30,661,382` bytes total).
+- The opening artwork, transition truck, and three role-card illustrations are
+  preloaded first. A role-scene portrait starts downloading only on hover,
+  keyboard focus, or touch of that role; other page imagery loads when its
+  section is reached. The appearance and image bytes are unchanged.
+- The 48,280-byte DM Sans variable font used by the first-screen Phir wordmark
+  is also preloaded from the initial HTML response, ahead of the images, so the
+  brand text can render with its intended font without waiting for CSS font
+  discovery. The live HTML is now `367,260` bytes.
+- Amplify custom headers give `/media/*` a one-year immutable cache policy;
+  hashed filenames make that safe. Live checks confirmed the root and a sample
+  image return HTTP 200, zero inline base64 assets remain, and the sample image
+  exactly matches the local source bytes.
+- The staged build matches the previous opening/chooser screenshot. A local
+  browser test confirmed the transition and all three role characters render.
+- `scripts/build_fast_frontend.py` recreates the static package in ignored
+  `dist/phir-fast/`; the deployed archive was approximately 29 MB, but end users
+  no longer download that entire archive as one HTML response. Keep the source
+  `frontend/phirFinal.optimized.html` unchanged as the visual source of truth.
+- A test deployment using a custom `Content-Encoding` header failed because
+  Amplify treats that header as read-only. It did not affect the live site; do
+  not repeat that custom-header approach.
+- The lossless PNG re-encode test produced no savings, so do not trade image
+  quality or alter the visual experience just to chase a smaller number. The
+  owner wants the complete artwork preserved, but prefers staged loading over
+  delivering every image in the initial HTML response.
+
 ## Project identity
 
 Project name: **Phir**
@@ -43,7 +94,9 @@ The demo should begin with the environmental problem, then show:
 
 ## Current status
 
-The core local and deployed recovery workflow is implemented.
+The local recovery workflow is implemented in the current checkout. The
+deployed recovery workflow was reported failing during judging and is not
+currently verified.
 
 ### Household
 
@@ -88,12 +141,13 @@ The core local and deployed recovery workflow is implemented.
 Primary frontend:
 
 ```text
-frontend/phirFinal.html
+frontend/phirFinal.optimized.html
 ```
 
-This is a large, self-contained cinematic HTML experience with embedded fonts,
-artwork, styles, story scenes, role selection, dashboards, and a presentation
-sorting game.
+This is the source consumed by `scripts/build_fast_frontend.py`; generated
+output is written to ignored `dist/phir-fast/`. The older
+`frontend/phirFinal.html` remains in the repository as a standalone source
+artifact but is not used by that builder.
 
 Supporting bridge scripts:
 
@@ -111,8 +165,9 @@ The frontend intentionally keeps presentation-only features local:
 
 Those features do not represent shared recovery state.
 
-The old `demo/index.html` remains a simple functional/reference client. It is
-not the primary frontend anymore.
+`demo/index.html` is the simple functional client served by the local demo
+script. It is separate from the stylized frontend and is the easiest client for
+local API development.
 
 ## Delhi map model
 
@@ -322,18 +377,30 @@ a238456 feat: classify household photo on selection
 2c7dce6 fix: enable material persistence and image classification
 ```
 
-The working tree was clean after the deployment commit.
+The working tree is currently dirty. Preserve existing work; do not reset,
+clean, or revert files to make it appear clean. At handoff there are edits in
+the frontend API/identity bridges and backend files, plus untracked demo and
+documentation files. Check `git status --short` before editing or deploying.
 
 Meaningful changes should be committed and pushed to `origin/main`. Do not
 push every tiny edit; use coherent milestone commits.
 
 ## Known limitations / next work
 
-1. The deployed frontend has not had a full interactive browser walkthrough yet.
+1. The staged live frontend has had opening/chooser and HTTP smoke checks, but
+   still needs a full interactive walkthrough of household, collector, and
+   recycler flows.
 2. AWS Rekognition Custom Labels is live in the deployed API; keep the model stopped when not actively demoing to control cost.
 3. Authentication is intentionally omitted for the MVP.
-4. The frontend is a 46 MB single HTML file because it embeds visual assets.
-5. Amplify deployment currently publishes the static frontend manually through the Amplify Hosting deployment API; the package must contain the root file `index.html` copied from `frontend/phirFinal.html`.
+4. The source visual file remains a ~41.55 MB self-contained HTML, but deployment
+   must now go through `python3 scripts/build_fast_frontend.py` to split assets
+   without recompressing or altering their bytes. Do not deploy that source HTML
+   directly, or the first-load delay will return.
+5. Amplify deployment is manual through the Amplify Hosting deployment API.
+   Deploy the complete contents of ignored `dist/phir-fast/` as the site root;
+   it includes the generated `index.html`, media files, bridge scripts, map,
+   loader, and custom-header config. The app's `/media/*` cache policy is already
+   configured in Amplify.
 6. CloudWatch alarms and production observability are not configured beyond basic Lambda/API logging.
 7. The API uses demo identities such as `household_1`, `kabadiwala_1`, and `recycler_1`.
 8. The frontend should eventually replace remaining static descriptive copy with profile API values.
@@ -355,8 +422,9 @@ push every tiny edit; use coherent milestone commits.
 ## How to continue naturally
 
 Start by acknowledging the current deployed state and read this file before
-asking questions. The best next step is a browser-based smoke test of the live
-frontend, followed by fixing any real interaction bugs found there.
+asking questions. The best next step is a browser-based walkthrough of the live
+frontend's household, collector, and recycler flows, followed by fixing any
+real interaction bugs found there.
 
 Work conversationally and collaboratively. The project owner likes direct,
 practical progress, dislikes unnecessary scope expansion, and prefers that

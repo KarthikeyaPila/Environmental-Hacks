@@ -18,7 +18,16 @@ ML_S3_BUCKET="${ML_S3_BUCKET:-environmental-recovery-ml-132218943520}"
 REKOGNITION_MODEL_ARN="${REKOGNITION_MODEL_ARN:-arn:aws:rekognition:ap-south-1:132218943520:project/environmental-recovery-classifier/version/trashnet-v1/1791474803175}"
 START_REKOGNITION_MODEL="${START_REKOGNITION_MODEL:-false}"
 
-MODEL_STARTED=false
+MODEL_MAY_BE_RUNNING=false
+
+cleanup() {
+  if [[ "$MODEL_MAY_BE_RUNNING" == true ]]; then
+    echo "Stopping Rekognition model..."
+    aws rekognition stop-project-version --project-version-arn "$REKOGNITION_MODEL_ARN" --region "$AWS_REGION" >/dev/null || true
+  fi
+}
+trap cleanup EXIT
+
 if [[ "$START_REKOGNITION_MODEL" == "true" && -n "$REKOGNITION_MODEL_ARN" ]]; then
   export AWS_REGION
   echo "Starting Rekognition model..."
@@ -26,26 +35,19 @@ if [[ "$START_REKOGNITION_MODEL" == "true" && -n "$REKOGNITION_MODEL_ARN" ]]; th
     --project-version-arn "$REKOGNITION_MODEL_ARN" \
     --min-inference-units 1 \
     --region "$AWS_REGION" >/dev/null
+  MODEL_MAY_BE_RUNNING=true
   for _ in {1..18}; do
     STATUS="$(aws rekognition describe-project-versions \
       --project-arn "${REKOGNITION_MODEL_ARN%/version/*}" \
       --version-names trashnet-v1 \
       --region "$AWS_REGION" \
       --query 'ProjectVersionDescriptions[0].Status' --output text 2>/dev/null || true)"
-    [[ "$STATUS" == "RUNNING" ]] && { MODEL_STARTED=true; break; }
+    [[ "$STATUS" == "RUNNING" ]] && break
     [[ "$STATUS" == "FAILED" || "$STATUS" == "STOPPED" ]] && { echo "Rekognition model failed to start: $STATUS" >&2; exit 1; }
     sleep 5
   done
-  [[ "$MODEL_STARTED" == true ]] || { echo "Timed out waiting for Rekognition model." >&2; exit 1; }
+  [[ "$STATUS" == "RUNNING" ]] || { echo "Timed out waiting for Rekognition model." >&2; exit 1; }
 fi
-
-cleanup() {
-  if [[ "$MODEL_STARTED" == true ]]; then
-    echo "Stopping Rekognition model..."
-    aws rekognition stop-project-version --project-version-arn "$REKOGNITION_MODEL_ARN" --region "$AWS_REGION" >/dev/null || true
-  fi
-}
-trap cleanup EXIT
 
 echo "Starting the recovery demo at http://localhost:${PORT}"
 echo "Press Ctrl+C to stop."

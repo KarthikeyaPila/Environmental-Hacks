@@ -49,6 +49,38 @@
   };
   window.phirPaintMetrics = values => document.querySelectorAll('.metrics .metric-value').forEach((node, index) => { if (values[index] !== undefined) node.textContent = values[index]; });
   const originalFetch = window.fetch;
+  const apiReadCache = new Map();
+  const apiReadTtlMs = 15000;
+  let apiCacheEpoch = 0;
+  window.phirApiRead = async (url, {force = false} = {}) => {
+    const key = new URL(url, location.href).href;
+    const cached = apiReadCache.get(key);
+    if (!force && cached && Date.now() - cached.savedAt < apiReadTtlMs) return cached.body;
+    if (!force && cached?.pending) return cached.pending;
+    const epoch = apiCacheEpoch;
+    let pending;
+    pending = (async () => {
+      const response = await window.fetch(key, {headers: {'Content-Type': 'application/json'}});
+      const body = await response.json();
+      if (!response.ok) throw new Error(body?.error?.message || 'The recovery service is unavailable.');
+      // An older read must never repopulate the cache after a mutation has
+      // invalidated it, or overwrite a newer read started after that write.
+      if (epoch === apiCacheEpoch && apiReadCache.get(key)?.pending === pending) {
+        apiReadCache.set(key, {body, savedAt: Date.now()});
+      }
+      return body;
+    })();
+    apiReadCache.set(key, {body: cached?.body, savedAt: cached?.savedAt || 0, pending});
+    try { return await pending; }
+    catch (error) { if (apiReadCache.get(key)?.pending === pending) apiReadCache.delete(key); throw error; }
+  };
+  window.phirApiWarm = path => window.phirApiRead(path).catch(() => undefined);
+  window.phirApiInvalidate = pathPrefix => {
+    apiCacheEpoch += 1;
+    for (const key of apiReadCache.keys()) {
+      if (!pathPrefix || new URL(key).pathname.startsWith(pathPrefix)) apiReadCache.delete(key);
+    }
+  };
   window.fetch = async (...args) => {
     const request = args[0];
     const url = typeof request === 'string' ? request : request?.url || '';
