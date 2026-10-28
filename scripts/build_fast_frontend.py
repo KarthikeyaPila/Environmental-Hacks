@@ -83,6 +83,13 @@ def brand_font_data_uris(html: str) -> list[str]:
 
 def build(output: Path) -> None:
     html = SOURCE_HTML.read_text(encoding="utf-8")
+    # Preserve the exact formatting of the currently served HTML bundle. The
+    # extra space is inside the GSAP license comment and has no runtime effect.
+    html = html.replace(
+        " * https://gsap.com\n *\n * @license Copyright 2024, GreenSock.",
+        " * https://gsap.com\n * \n * @license Copyright 2024, GreenSock.",
+        1,
+    )
     # Cache-bust the separately served bridge scripts when rebuilding the app.
     # Otherwise browsers/CDNs may continue using the old interaction handlers.
     html = re.sub(

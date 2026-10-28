@@ -28,6 +28,12 @@
     window.phirApiInvalidate?.('/api/');
     return body;
   };
+  const fileAsBase64 = file => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
   const localMaterial = item => ({id: item.id, type: item.materialType, quantityKg: Number(item.quantityKg), estimatedValue: item.estimatedValueInr, status: item.status || 'available', owner: 'household'});
   const localRequest = item => item && ({id: item.id, status: item.status, quantityKg: Object.values(item.quantityByType || {}).reduce((sum, value) => sum + Number(value), 0), quantityByType: item.quantityByType || {}, materialIds: [], area: item.region || 'Delhi', region: item.region || 'Delhi', regionId: item.regionId, assignedKabadiwalaId: item.assignedKabadiwalaId});
   function groupHouseholdMaterials() {
@@ -250,7 +256,7 @@
     const action = button.dataset.action;
     if (action === 'add-material') {
       event.preventDefault(); event.stopImmediatePropagation();
-      openModal('Add material', `<p class="modal-intro">Choose how you want to record your recyclable material.</p><div class="modal-choice-grid"><button class="btn" type="button" data-action="add-material-manual">Add manually</button><button class="btn secondary" type="button" data-action="photo-material">Get a demo suggestion from a photo</button></div>`);
+      openModal('Add material', `<p class="modal-intro">Choose how you want to record your recyclable material.</p><div class="modal-choice-grid"><button class="btn" type="button" data-action="add-material-manual">Add manually</button><button class="btn secondary" type="button" data-action="photo-material">Identify from a photo</button></div>`);
     } else if (action === 'add-material-manual') {
       event.preventDefault(); event.stopImmediatePropagation();
       materialForm();
@@ -328,19 +334,23 @@
         if (preview) { preview.src = URL.createObjectURL(file); preview.hidden = false; }
         const resultTitle = form.querySelector('#photo-result-title');
         const resultCopy = form.querySelector('#photo-result-copy');
-        if (resultTitle) resultTitle.textContent = 'Preparing a demo suggestion…';
-        if (resultCopy) resultCopy.textContent = 'This demo does not analyze or upload the photo.';
+        if (resultTitle) resultTitle.textContent = 'Analyzing your photo…';
+        if (resultCopy) resultCopy.textContent = 'Checking for one dominant recyclable material.';
         if (message) { message.className = 'note'; message.textContent = ''; }
-        const result = await api('/api/classify-image', {method: 'POST', body: JSON.stringify({filename: file.name})});
+        const upload = await api('/api/image-upload', {method: 'POST', body: JSON.stringify({filename: file.name, contentType: file.type})});
+        const uploaded = await fetch(upload.uploadUrl, {method: 'PUT', headers: {'Content-Type': file.type, 'x-amz-server-side-encryption': 'AES256'}, body: file});
+        if (!uploaded.ok) throw new Error(`Image upload failed (${uploaded.status}).`);
+        const result = await api('/api/classify-image', {method: 'POST', body: JSON.stringify({s3Key: upload.key})});
         const detection = result.detections?.[0];
-        if (!detection) throw new Error('No demo suggestion was available.');
-        form.dataset.classification = JSON.stringify({fileName: file.name, fileSize: file.size, detection, mode: result.mode});
+        if (!detection) throw new Error('No recyclable material was detected.');
+        form.dataset.classification = JSON.stringify({fileName: file.name, fileSize: file.size, detection});
         const type = detection.materialType;
         form.dataset.recommendedType = type;
         const select = form.querySelector('#material-type');
         if (select && [...select.options].some(option => option.value === type)) select.value = type;
-        if (resultTitle) resultTitle.textContent = `Demo suggestion: ${type}.`;
-        if (resultCopy) resultCopy.textContent = 'Simulated from the filename only; no image analysis ran. Review or change the material before confirming.';
+        const confidence = Math.round(Number(detection.confidence || 0) * 100);
+        if (resultTitle) resultTitle.textContent = `We think this is ${type}.`;
+        if (resultCopy) resultCopy.textContent = `${confidence}% confidence · Review the material and confirm below.`;
         const submit = form.querySelector('#material-submit');
         if (submit) submit.innerHTML = `${icon('check')} Confirm ${type} · add material`;
       } catch (error) {
@@ -367,23 +377,30 @@
         let result;
         const cached = JSON.parse(form.dataset.classification || 'null');
         if (cached?.fileName === file.name && cached.fileSize === file.size && cached.detection) {
-          result = {detections: [cached.detection], mode: cached.mode};
+          result = {detections: [cached.detection]};
         } else {
-          result = await api('/api/classify-image', {method: 'POST', body: JSON.stringify({filename: file.name})});
+          try {
+            const upload = await api('/api/image-upload', {method: 'POST', body: JSON.stringify({filename: file.name, contentType: file.type})});
+            const uploaded = await fetch(upload.uploadUrl, {method: 'PUT', headers: {'Content-Type': file.type, 'x-amz-server-side-encryption': 'AES256'}, body: file});
+            if (!uploaded.ok) throw new Error(`Image upload failed (${uploaded.status}).`);
+            result = await api('/api/classify-image', {method: 'POST', body: JSON.stringify({s3Key: upload.key})});
+          } catch (uploadError) {
+            result = await api('/api/classify-image', {method: 'POST', body: JSON.stringify({filename: file.name, imageBase64: await fileAsBase64(file)})});
+          }
         }
         const detection = result.detections?.[0];
-        if (!detection) throw new Error('No demo suggestion was available.');
+        if (!detection) throw new Error('No recyclable material was detected.');
         const materialType = detection.materialType === 'other' ? data.get('type') : detection.materialType;
         const materialSelect = form.querySelector('#material-type');
         if (materialSelect && [...materialSelect.options].some(option => option.value === materialType)) materialSelect.value = materialType;
         const recommendation = form.querySelector('#form-error');
         if (recommendation) {
           recommendation.className = 'note';
-          recommendation.textContent = `Demo suggestion: ${materialType} (simulated; no image analysis).`;
+          recommendation.textContent = `Recommended: ${materialType} (${Math.round(Number(detection.confidence || 0) * 100)}% confidence).`;
         }
         optimistic.update(materialType, quantityKg);
         return api('/api/materials', {method: 'POST', body: JSON.stringify({userId: householdId, materialType, quantityKg})});
-      }, 'Demo suggestion saved. Please confirm materials manually.', optimistic);
+      }, 'Material identified and saved.', optimistic);
       return;
     }
     const payload = {userId: householdId, materialType: data.get('type'), quantityKg: Number(data.get('weight'))};

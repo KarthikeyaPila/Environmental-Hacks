@@ -10,17 +10,30 @@ static packaging script:
 - `../demo/index.html` is the small functional client served by
   `../scripts/run_demo.sh` for local API development.
 
-## Build the stylized frontend package
+## Rebuild the deployed frontend package
 
 From the repository root:
 
 ```bash
-python3 scripts/build_fast_frontend.py
+python3 scripts/build_fast_frontend.py --output frontend/amplify-site
+git diff --exit-code -- frontend/amplify-site
 ```
 
-The script extracts/static-packages its source into `dist/phir-fast/`. That
-directory is generated and ignored by Git. Keep it as a build artifact; edit
-the source and the checked-in supporting scripts/media instead.
+`amplify-site/` is the complete static package currently served by Amplify. It
+is checked in so a clone contains the exact deployable HTML, all 44 media
+assets, runtime scripts, map, and Amplify custom headers. The build command
+regenerates that package from the source and supporting files in this
+directory; `git diff --exit-code` confirms the generated copy matches the
+checked-in artifact.
+
+To preview the package from a clone, run:
+
+```bash
+python3 -m http.server 8090 --directory frontend/amplify-site
+```
+
+Then open <http://localhost:8090>. The page uses the checked-in API base URL
+and therefore still needs a reachable backend for data-dependent flows.
 
 The page uses the bridge scripts in this directory to call the HTTP API.
 `phir-config.js` currently sets the deployed API Gateway URL. The package is

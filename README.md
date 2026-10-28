@@ -86,16 +86,23 @@ credentials, region/resource configuration, and may incur charges.
 
 ## Frontend package
 
-The current fast-package source is `frontend/phirFinal.optimized.html`. Build
-the static package with:
+The current Amplify frontend source is `frontend/phirFinal.optimized.html`.
+The complete static package served by Amplify, including its generated HTML,
+all 44 hashed media assets, runtime scripts, map, and Amplify headers, is
+checked in at `frontend/amplify-site/`. Rebuild that directory with:
 
 ```bash
-python3 scripts/build_fast_frontend.py
+python3 scripts/build_fast_frontend.py --output frontend/amplify-site
 ```
 
-The generated package is `dist/phir-fast/` and is ignored by Git. See
-[`frontend/README.md`](frontend/README.md) for the distinction between this
-source, the older `frontend/phirFinal.html`, generated media, and API setup.
+Then verify that the generated package is unchanged with:
+
+```bash
+git diff --exit-code -- frontend/amplify-site
+```
+
+See [`frontend/README.md`](frontend/README.md) for local preview instructions,
+the older `frontend/phirFinal.html`, and API setup details.
 
 ## Demo data and AWS writes
 
